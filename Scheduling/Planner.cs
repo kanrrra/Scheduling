@@ -55,6 +55,7 @@ namespace Scheduling
             foreach(BarShift bs in barShifts)
             {
                 tasks.Add(new Task("", TaskType.BarKeeper, bs.startTime, bs.endTime, Qualifications.AgeQualification.Adult, Qualifications.RefereeQualification.None));
+                tasks.Add(new Task("", TaskType.BarKeeper, bs.startTime, bs.endTime, Qualifications.AgeQualification.Adult, Qualifications.RefereeQualification.None));
             }
 
             tasks = tasks.OrderByDescending(t => t.GetRefereeQualification()).ThenByDescending(t => t.getAgeQualification()).ToList();
@@ -66,25 +67,20 @@ namespace Scheduling
         {
             generateInitialSchema();
 
-            double sos = reportScore();
+            double sos = reportScore("initial: ");
             
-            for (int i = 0; i < 25; i++)
+            for (int i = 0; i < 200; i++)
             {
                 searchTask();
                 twoOpt();
-                double newSos = reportScore();
+                double newSos = reportScore("" + i + ": ");
 
                 if (sos == newSos)
                 {
                     break;
                 }
-                else
-                {
-                    sos = newSos;
-                }
+                sos = newSos;
             }
-
-            reportScore();
 
             Console.Out.WriteLine("=====================================================");
 
@@ -101,12 +97,28 @@ namespace Scheduling
                     Console.Out.WriteLine(teamname);
                 }
 
-                Console.Out.WriteLine(p.name);
+                Console.Out.WriteLine(p.name + " " + p.getCurrentCost());
                 foreach(Task t in p.tasks)
                 {
                     Console.Out.WriteLine(t);
                 }
                 Console.Out.WriteLine("");
+            }
+
+            Console.Out.WriteLine("=====================================================");
+
+            tasks = tasks.OrderBy(t => t.startTime).ToList();
+
+            DateTime day = new DateTime();
+            foreach(Task t in tasks)
+            {
+                if(day != t.startTime.Date)
+                {
+                    day = t.startTime.Date;
+                    Console.Out.WriteLine("==================\n");
+                }
+
+                Console.Out.WriteLine(players.Where(p => p.tasks.Contains(t)).ToList()[0].name + ": " + t);
             }
 
         }
@@ -130,6 +142,7 @@ namespace Scheduling
                     foreach (Task task1 in p1.tasks)
                     {
                         if (!p2.isQualified(task1)) continue;
+                        if (!p2.canPerformTaskOnDay(task1.startTime)) continue;
                         if (p2.hasMatchOnTime(task1.startTime, task1.endTime)) continue;
 
                         double p1Task1Cost = p1.getCost(task1);
@@ -139,6 +152,7 @@ namespace Scheduling
                         foreach (Task task2 in p2.tasks)
                         {
                             if (!p1.isQualified(task2)) continue;
+                            if (!p1.canPerformTaskOnDay(task2.startTime)) continue;
                             if (p1.hasMatchOnTime(task2.startTime, task2.endTime)) continue;
                             
                             if (p1.hasOtherTaskOnTime(task1, task2.startTime, task2.endTime)) continue;
@@ -180,13 +194,13 @@ namespace Scheduling
         }
 
 
-        public double reportScore()
+        public double reportScore(string prefix)
         {
             double meanScore = players.Average(p => p.getCurrentCost());
             double stdDev = players.Select(p => Math.Pow(p.getCurrentCost() - meanScore, 2)).Sum();
             double sos = players.Select(p => Math.Pow(p.getCurrentCost(), 2)).Sum();
 
-            Console.Out.WriteLine("mean: " + meanScore + " stdDev: " + stdDev + " sos: " + sos);
+            Console.Out.WriteLine(prefix + "mean: " + meanScore + " stdDev: " + stdDev + " sos: " + sos);
 
             return sos;
         }

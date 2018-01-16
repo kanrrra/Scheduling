@@ -79,6 +79,11 @@ namespace Scheduling
             return hasTaskOnTime(startTime, endTime) || hasMatchOnTime(startTime, endTime);
         }
 
+        public bool canPerformTaskOnDay(DateTime dateTime)
+        {
+            return team.allowSchedulingOnNonMatchDay || team.matches.Any(m => dateTime.Date == m.startTime.Date);
+        }
+
         public bool isQualified(Task t)
         {
             return (ageQualification >= t.getAgeQualification() && refereeQualification >= t.GetRefereeQualification());
@@ -114,7 +119,11 @@ namespace Scheduling
             }
 
             //no match on this day
-            return 2.0 + duration;
+            if (team.allowSchedulingOnNonMatchDay)
+            {
+                return 1.0 + duration;
+            }
+            return -1;
         }
 
         private bool hasTimeOverlap(DateTime startTimeA, DateTime endTimeA, DateTime startTimeB, DateTime endTimeB)

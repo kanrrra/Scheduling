@@ -10,6 +10,8 @@ namespace Scheduling
         public int flagsRequired;
         public int additionalPeopleRequired; //tellen etc
 
+        public bool allowSchedulingOnNonMatchDay = true;
+
         public RefereeQualification minimumRefereeQualification;
 
         public Team(string name, string level, int additionalPeopleRequired, int flagsRequired)
@@ -24,6 +26,11 @@ namespace Scheduling
         public void addMatch(Match m)
         {
             matches.Add(m);
+
+            if(m.startTime.DayOfWeek == System.DayOfWeek.Saturday)
+            {
+                allowSchedulingOnNonMatchDay = false;
+            }
         }
 
     }

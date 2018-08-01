@@ -27,22 +27,22 @@ namespace Scheduling
             //set team objects
             foreach (Match m in matches)
             {
-                m.team = teams[m.teamName];
+                m.SetTeam(teams[m.teamName]);
                 m.team.addMatch(m);
 
                 //add referee task
                 if (m.requiresReferee())
                 {
-                    tasks.Add(new Task(m.team.name, TaskType.Referee, m.startTime, m.startTime.AddHours(2), Qualifications.AgeQualification.Adult, m.team.minimumRefereeQualification));
+                    tasks.Add(new Task(m.team.name, TaskType.Referee, m.GetRefereeStartTime(), m.GetEndTime(), 0, m.team.minimumRefereeQualification));
                 }
 
                 for (int i = 0; i < m.flagsRequired(); i++)
                 {
-                    tasks.Add(new Task(m.team.name, TaskType.Linesman, m.startTime, m.startTime.AddHours(2), Qualifications.AgeQualification.Adult, Qualifications.RefereeQualification.None));
+                    tasks.Add(new Task(m.team.name, TaskType.Linesman, m.GetRefereeStartTime(), m.GetEndTime(), 16, Qualifications.RefereeQualification.None));
                 }
                 for (int i = 0; i < m.additionalsRequired(); i++)
                 {
-                    tasks.Add(new Task(m.team.name, TaskType.ScoreKeeping, m.startTime, m.startTime.AddHours(2), Qualifications.AgeQualification.None, Qualifications.RefereeQualification.None));
+                    tasks.Add(new Task(m.team.name, TaskType.ScoreKeeping, m.GetRefereeStartTime(), m.GetEndTime(), 0, Qualifications.RefereeQualification.None));
                 }
 
             }
@@ -54,8 +54,8 @@ namespace Scheduling
 
             foreach(BarShift bs in barShifts)
             {
-                tasks.Add(new Task("", TaskType.BarKeeper, bs.startTime, bs.endTime, Qualifications.AgeQualification.Adult, Qualifications.RefereeQualification.None));
-                tasks.Add(new Task("", TaskType.BarKeeper, bs.startTime, bs.endTime, Qualifications.AgeQualification.Adult, Qualifications.RefereeQualification.None));
+                tasks.Add(new Task("", TaskType.BarKeeper, bs.startTime, bs.endTime, 16, Qualifications.RefereeQualification.None));
+                tasks.Add(new Task("", TaskType.BarKeeper, bs.startTime, bs.endTime, 16, Qualifications.RefereeQualification.None));
             }
 
             tasks = tasks.OrderByDescending(t => t.GetRefereeQualification()).ThenByDescending(t => t.getAgeQualification()).ToList();
@@ -100,7 +100,9 @@ namespace Scheduling
                 Console.Out.WriteLine(p.name + " " + p.getCurrentCost());
                 foreach(Task t in p.tasks)
                 {
-                    Console.Out.WriteLine(t);
+                    Console.Out.WriteLine("Match: " + p.getMatchOnDay(t.startTime));
+                    Console.Out.WriteLine("Task: " + t);
+
                 }
                 Console.Out.WriteLine("");
             }
@@ -118,7 +120,14 @@ namespace Scheduling
                     Console.Out.WriteLine("==================\n");
                 }
 
-                Console.Out.WriteLine(players.Where(p => p.tasks.Contains(t)).ToList()[0].name + ": " + t);
+                var playersOnTask = players.Where(p => p.tasks.Contains(t)).ToList();
+                if(playersOnTask.Count > 0)
+                {
+                    Console.Out.WriteLine(playersOnTask[0].name + ": " + t);
+                } else
+                {
+                    Console.Out.WriteLine("Noone found for task: " + t);
+                }
             }
 
         }
@@ -218,7 +227,7 @@ namespace Scheduling
                 //the players task that is to be given away
                 foreach (Task task in p.tasks)
                 {
-                    double scoreImprovment = Math.Pow(p.getCurrentCost(), 2) - Math.Pow(p.getCurrentCost() - p.getCost(task), 2);
+                    double oldScore = Math.Pow(p.getCurrentCost(), 2) - Math.Pow(p.getCurrentCost() - p.getCost(task), 2);
 
                     foreach (Player playerUnderConsideration in players)
                     {
@@ -234,7 +243,7 @@ namespace Scheduling
 
                         //new cost - current cost
                         double scoreCost = Math.Pow(playerUnderConsideration.getCurrentCost() + playerUnderConsideration.getCost(task), 2) - Math.Pow(playerUnderConsideration.getCurrentCost(), 2);
-                        double score = scoreImprovment - scoreCost;
+                        double score = oldScore - scoreCost;
 
                         if (score > currentLargestImprovment || (score == currentLargestImprovment && playerUnderConsideration.isMoreQualified(alternativePlayer, task) ))
                         {
@@ -269,7 +278,7 @@ namespace Scheduling
 
                 foreach (Player p in players)
                 {
-                    if (!p.hasTaskOnDate(t.startTime))
+                    if (!p.hasTaskOnTime(t.startTime, t.endTime) && !p.hasMatchOnTime(t.startTime, t.endTime) && p.canPerformTaskOnDay(t.startTime))
                     {
                         double currentCost = p.getCost(t);
                         if (currentCost >= 0 && currentCost < minCost)

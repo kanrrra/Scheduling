@@ -26,7 +26,7 @@ namespace Scheduling
         {
             string[] tokens = playerString.Split(',');
 
-            return new Player(tokens[0].Trim(), tokens[1].Trim(), tokens[2].Trim());
+            return new Player(tokens[0].Trim(), tokens[1].Trim(), tokens[2].Trim(), dateFromString(tokens[3], "00:00"));
         }
 
         //matches
@@ -34,8 +34,8 @@ namespace Scheduling
         {
             string[] tokens = matchString.Split(new char[] { ',', ';', '\t' });
 
-            //matches start half an hour before the official time
-            return new Match(tokens[2], dateFromString(tokens[0], tokens[1]).AddMinutes(-30));
+            //official start time
+            return new Match(tokens[2], dateFromString(tokens[0], tokens[1]));
         }
 
         //bar
@@ -70,7 +70,7 @@ namespace Scheduling
         private Team createTeamFromString(string teamString)
         {
             string[] tokens = teamString.Split(',');
-            return new Team(tokens[0].Trim(' '), tokens[1].Trim(' '), int.Parse(tokens[2]), int.Parse(tokens[3]));
+            return new Team(tokens[0].Trim(' '), tokens[1].Trim(' '), int.Parse(tokens[2]), int.Parse(tokens[3]), int.Parse(tokens[4]), int.Parse(tokens[5]));
         }
 
         public List<Team> readTeams(string path)

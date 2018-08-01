@@ -22,8 +22,15 @@ namespace Scheduling
             List<Team> teams = r.readTeams(teamsPath);
             List<BarShift> bar = r.readBarShifts(barPath);
 
-
             Planner p = new Planner(matches, players, teams, bar);
+
+
+            foreach (Team t in teams){
+                Console.Out.WriteLine(t);
+                Console.Out.WriteLine("");
+            }
+
+
 
             p.generateSchema();
 

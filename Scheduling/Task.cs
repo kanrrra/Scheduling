@@ -12,19 +12,19 @@ namespace Scheduling
         public TaskType type;
         public DateTime startTime;
         public DateTime endTime;
-        private AgeQualification ageQualification;
         private RefereeQualification refereeQualification;
+        private int minimumAge;
         private string note;
 
         public Player person;
 
-        public Task(string note, TaskType type, DateTime start, DateTime end, AgeQualification ageQualification, RefereeQualification refereeQualification)
+        public Task(string note, TaskType type, DateTime start, DateTime end, int minimumAge, RefereeQualification refereeQualification)
         {
             this.note = note;
             this.type = type;
             this.startTime = start;
             this.endTime = end;
-            this.ageQualification = ageQualification;
+            this.minimumAge = minimumAge;
             this.refereeQualification = refereeQualification;
         }
 
@@ -46,9 +46,9 @@ namespace Scheduling
             return name + " " + note + " " + startTime;
         }
 
-        public AgeQualification getAgeQualification()
+        public DateTime getAgeQualification()
         {
-            return ageQualification;
+            return startTime.Date.AddYears(-minimumAge);
         }
 
         public RefereeQualification GetRefereeQualification()

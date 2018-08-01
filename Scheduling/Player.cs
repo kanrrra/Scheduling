@@ -11,25 +11,19 @@ namespace Scheduling
         public readonly string teamName;
 
         private readonly RefereeQualification refereeQualification;
-        private readonly AgeQualification ageQualification;
+        private readonly DateTime dateOfBirth;
 
         private Team team;
         public List<Task> tasks = new List<Task>();
 
 
-        public Player(string name, string teamName, string refereeQualificationText)
+        public Player(string name, string teamName, string refereeQualificationText, DateTime dateOfBirth)
         {
             this.name = name;
             this.teamName = teamName;
 
             this.refereeQualification = textLabelToReferee(refereeQualificationText);
-
-            if(teamName.ToLower().Contains("ds") || teamName.ToLower().Contains("hs")){
-                this.ageQualification = AgeQualification.Adult;
-            } else {
-                this.ageQualification = AgeQualification.None;
-            }
-
+            this.dateOfBirth = dateOfBirth;
         }
 
         public void setTeam(Team t)
@@ -71,7 +65,12 @@ namespace Scheduling
 
         public bool hasMatchOnTime(DateTime startTime, DateTime endTime)
         {
-            return team.matches.Any(m => hasTimeOverlap(m.startTime, m.endTime, startTime, endTime));
+            return team.matches.Any(m => hasTimeOverlap(m.GetPlayerStartTime(), m.GetEndTime(), startTime, endTime));
+        }
+
+        public Match getMatchOnDay(DateTime day)
+        {
+            return team.matches.Find(m => day.Date == m.GetPlayerStartTime().Date);
         }
 
         public bool isBusyOnTime(DateTime startTime, DateTime endTime)
@@ -81,12 +80,12 @@ namespace Scheduling
 
         public bool canPerformTaskOnDay(DateTime dateTime)
         {
-            return team.allowSchedulingOnNonMatchDay || team.matches.Any(m => dateTime.Date == m.startTime.Date);
+            return team.allowSchedulingOnNonMatchDay || team.matches.Any(m => dateTime.Date == m.GetPlayerStartTime().Date);
         }
 
         public bool isQualified(Task t)
         {
-            return (ageQualification >= t.getAgeQualification() && refereeQualification >= t.GetRefereeQualification());
+            return (dateOfBirth <= t.getAgeQualification() && refereeQualification >= t.GetRefereeQualification());
         }
 
         public double getCost(Task t)
@@ -98,18 +97,18 @@ namespace Scheduling
 
             foreach (Match m in team.matches)
             {
-                if(t.startTime.Date == m.startTime.Date)
+                if(t.startTime.Date == m.GetPlayerStartTime().Date)
                 {
                     //after
-                    if(t.startTime >= m.endTime)
+                    if(t.startTime >= m.GetEndTime())
                     {
-                        double waitTime = t.startTime.Subtract(m.endTime).TotalHours;
-                        return duration + Math.Min(0.5 * waitTime, 1);
-                    } else if(t.endTime <= m.startTime)
+                        double waitTime = t.startTime.Subtract(m.GetEndTime()).TotalHours;
+                        return duration + Math.Sqrt(waitTime);
+                    } else if(t.endTime <= m.GetPlayerStartTime())
                     {
                         //before
-                        double waitTime = m.startTime.Subtract(t.endTime).TotalHours;
-                        return duration + Math.Min(0.5 * waitTime, 1);
+                        double waitTime = m.GetPlayerStartTime().Subtract(t.endTime).TotalHours;
+                        return duration + Math.Sqrt(waitTime);
                     } else
                     {
                         return -1;
@@ -133,7 +132,7 @@ namespace Scheduling
 
         public override string ToString()
         {
-            string id = name + " " + ageQualification + ":" + refereeQualification + ": " + getCurrentCost() + "\n";
+            string id = name + " " + dateOfBirth + ":" + refereeQualification + ": " + getCurrentCost() + "\n";
             foreach(Task t in tasks)
             {
                 id += "T: " + t + " " + getCost(t) + "\n";
@@ -150,7 +149,7 @@ namespace Scheduling
             }
             else
             {
-                return ageQualification > alternativePlayer.ageQualification;
+                return false;//return ageQualification > alternativePlayer.ageQualification;
             }
         }
     }

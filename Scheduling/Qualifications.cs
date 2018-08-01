@@ -19,12 +19,6 @@ namespace Scheduling
             National
         }
 
-        public enum AgeQualification
-        {
-            None,
-            Adult
-        }
-
         internal static RefereeQualification textLabelToReferee(string text)
         {
             switch (text.ToLower())
@@ -61,20 +55,11 @@ namespace Scheduling
                     return RefereeQualification.VS1;
                 case "jeugd":
                     return RefereeQualification.VS1;
+                case "mini":
+                    return RefereeQualification.None;
                 default:
                     Console.Out.WriteLine("Unknown level found: " + level);
                     return RefereeQualification.VS1;
-            }
-        }
-
-        internal static AgeQualification textToAgeQualification(string text)
-        {
-            if (text.ToLower() == "adult")
-            {
-                return AgeQualification.Adult;
-            } else
-            {
-                return AgeQualification.None;
             }
         }
     }

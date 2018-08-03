@@ -43,6 +43,7 @@
   </ItemGroup>
   <ItemGroup>
     <Compile Include="BarShift.cs" />
+    <Compile Include="DateException.cs" />
     <Compile Include="Match.cs" />
     <Compile Include="Planner.cs" />
     <Compile Include="Player.cs" />

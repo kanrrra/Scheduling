@@ -12,6 +12,7 @@ namespace Scheduling
         static string playersPath = "C:/data/players.csv";
         static string teamsPath = "C:/data/teams.csv";
         static string barPath = "C:/data/bar.csv";
+        static string exceptionPath = "C:/data/exceptions.csv";
 
         static void Main(string[] args)
         {
@@ -21,8 +22,9 @@ namespace Scheduling
             List<Player> players = r.readPlayers(playersPath);
             List<Team> teams = r.readTeams(teamsPath);
             List<BarShift> bar = r.readBarShifts(barPath);
+            List<DateException> dateExceptions = r.readExceptions(exceptionPath);
 
-            Planner p = new Planner(matches, players, teams, bar);
+            Planner p = new Planner(matches, players, teams, bar, dateExceptions);
 
 
             foreach (Team t in teams){

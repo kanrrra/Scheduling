@@ -80,7 +80,7 @@ namespace Scheduling
 
         public bool canPerformTaskOnDay(DateTime dateTime)
         {
-            return team.allowSchedulingOnNonMatchDay || team.matches.Any(m => dateTime.Date == m.GetPlayerStartTime().Date);
+            return (team.allowSchedulingOnNonMatchDay && !team.unavailableDates.Contains(dateTime.Date)) || team.matches.Any(m => dateTime.Date == m.GetPlayerStartTime().Date);
         }
 
         public bool isQualified(Task t)

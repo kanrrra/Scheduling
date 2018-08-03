@@ -43,7 +43,7 @@ namespace Scheduling
                 name = "Referee";
             }
 
-            return name + " " + note + " " + startTime;
+            return name + " " + note + " " + startTime + "-" + endTime.TimeOfDay;
         }
 
         public DateTime getAgeQualification()

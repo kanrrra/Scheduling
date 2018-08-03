@@ -1,4 +1,5 @@
-﻿using System.Collections.Generic;
+﻿using System;
+using System.Collections.Generic;
 using static Scheduling.Qualifications;
 
 namespace Scheduling
@@ -11,6 +12,8 @@ namespace Scheduling
         public int additionalPeopleRequired { get; private set; } //tellen etc
         public int additionalPreMatchTime { get; private set; }
         public int matchDurationMinutes { get; private set; }
+
+        public HashSet<DateTime> unavailableDates { get; private set; } = new HashSet<DateTime>();
 
         public bool allowSchedulingOnNonMatchDay = true;
 
@@ -26,6 +29,11 @@ namespace Scheduling
             this.matchDurationMinutes = matchDurationMinutes;
 
             minimumRefereeQualification = Qualifications.textTeamToReferee(level);
+        }
+
+        public void addExceptionDate(DateTime date)
+        {
+            unavailableDates.Add(date);
         }
 
         public void addMatch(Match m)

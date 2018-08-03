@@ -38,12 +38,40 @@ namespace Scheduling
             return new Match(tokens[2], dateFromString(tokens[0], tokens[1]));
         }
 
+        //date busy
+        private DateException createDateExceptionFromString(string dateExceptionString)
+        {
+            string[] tokens = dateExceptionString.Split(',');
+
+            return new DateException(dateFromString(tokens[0], "00:00").Date, tokens[1]);
+        }
+
         //bar
         private BarShift createBarshiftFromString(string barString)
         {
             string[] tokens = barString.Split(',');
 
             return new BarShift(dateFromString(tokens[0], tokens[1]), dateFromString(tokens[0], tokens[2]));
+        }
+
+        public List<DateException> readExceptions(string exceptionPath)
+        {
+            List<DateException> dateExceptions = new List<DateException>();
+
+            string line;
+
+            System.IO.StreamReader file = new System.IO.StreamReader(exceptionPath);
+            while ((line = file.ReadLine()) != null)
+            {
+                if (line.Trim().Length == 0) continue;
+
+                dateExceptions.Add(createDateExceptionFromString(line));
+            }
+
+            file.Close();
+
+            return dateExceptions;
+
         }
 
         public List<BarShift> readBarShifts(string barPath)

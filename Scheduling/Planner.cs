@@ -11,7 +11,7 @@ namespace Scheduling
         List<Player> players;
         Dictionary<string, Team> teams = new Dictionary<string, Team>();
 
-        public Planner(List<Match> matchesHolder, List<Player> playersHolder, List<Team> teamsHolder, List<BarShift> barShifts)
+        public Planner(List<Match> matchesHolder, List<Player> playersHolder, List<Team> teamsHolder, List<BarShift> barShifts, List<DateException> dateExceptions)
         {
             this.players = playersHolder;
             this.matches = matchesHolder;
@@ -22,7 +22,10 @@ namespace Scheduling
                 teams.Add(t.name, t);
             }
 
-
+            foreach(DateException de in dateExceptions)
+            {
+                teams[de.teamName].addExceptionDate(de.date);
+            }
 
             //set team objects
             foreach (Match m in matches)

@@ -43,7 +43,7 @@ namespace Scheduling
         {
             string[] tokens = dateExceptionString.Split(',');
 
-            return new DateException(dateFromString(tokens[0], "00:00").Date, tokens[1]);
+            return new DateException(dateFromString(tokens[0], "00:00").Date, tokens[1].Trim());
         }
 
         //bar

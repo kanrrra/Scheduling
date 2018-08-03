@@ -103,8 +103,7 @@ namespace Scheduling
                 Console.Out.WriteLine(p.name + " " + p.getCurrentCost());
                 foreach(Task t in p.tasks)
                 {
-                    Console.Out.WriteLine("Match: " + p.getMatchOnDay(t.startTime));
-                    Console.Out.WriteLine("Task: " + t);
+                    Console.Out.WriteLine("Match: " + p.getMatchOnDay(t.startTime) + "\tTask: " + t + "\tcost: " + p.getCost(t));
 
                 }
                 Console.Out.WriteLine("");
@@ -115,10 +114,14 @@ namespace Scheduling
             tasks = tasks.OrderBy(t => t.startTime).ToList();
 
             DateTime day = new DateTime();
+            double dayCost = 0;
             foreach(Task t in tasks)
             {
                 if(day != t.startTime.Date)
                 {
+                    Console.Out.WriteLine("Daycost: " + dayCost);
+                    dayCost = 0;
+
                     day = t.startTime.Date;
                     Console.Out.WriteLine("==================\n");
                 }
@@ -126,13 +129,14 @@ namespace Scheduling
                 var playersOnTask = players.Where(p => p.tasks.Contains(t)).ToList();
                 if(playersOnTask.Count > 0)
                 {
-                    Console.Out.WriteLine(playersOnTask[0].name + ": " + t);
+                    Console.Out.WriteLine((playersOnTask[0].name + ": ").PadRight(25) + t + "\tcost: " + playersOnTask[0].getCost(t));
+                    dayCost += playersOnTask[0].getCost(t);
                 } else
                 {
-                    Console.Out.WriteLine("Noone found for task: " + t);
+                    Console.Out.WriteLine("!!!!!!!!!!!!!!!!!!!!!!! Noone found for task: " + t);
                 }
             }
-
+            Console.Out.WriteLine("Daycost: " + dayCost);
         }
 
 
@@ -281,7 +285,7 @@ namespace Scheduling
 
                 foreach (Player p in players)
                 {
-                    if (!p.hasTaskOnTime(t.startTime, t.endTime) && !p.hasMatchOnTime(t.startTime, t.endTime) && p.canPerformTaskOnDay(t.startTime))
+                    if (!p.hasTaskOnTime(t.startTime, t.endTime) && !p.hasMatchOnTime(t.startTime, t.endTime) && p.canPerformTaskOnDay(t.startTime) /*&& !p.hasTaskOnDate(t.startTime.Date)*/)
                     {
                         double currentCost = p.getCost(t);
                         if (currentCost >= 0 && currentCost < minCost)

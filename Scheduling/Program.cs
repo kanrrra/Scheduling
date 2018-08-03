@@ -29,6 +29,12 @@ namespace Scheduling
 
             foreach (Team t in teams){
                 Console.Out.WriteLine(t);
+
+                Console.Out.WriteLine("Days busy: ");
+                foreach(DateTime dt in t.unavailableDates)
+                {
+                    Console.Out.WriteLine("\t" + dt);
+                }
                 Console.Out.WriteLine("");
             }
 

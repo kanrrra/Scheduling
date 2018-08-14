@@ -52,7 +52,11 @@ namespace Scheduling
 
             foreach(Player p in players)
             {
-                p.setTeam(teams[p.teamName]);
+                foreach(var team in p.teamNames)
+                {
+                    p.addTeam(teams[team]);
+
+                }
             }
 
             foreach(BarShift bs in barShifts)
@@ -88,24 +92,42 @@ namespace Scheduling
             Console.Out.WriteLine("=====================================================");
 
 
-            players = players.OrderBy(p => p.teamName).ThenByDescending(p => p.getCurrentCost()).ToList();
+            players = players.OrderBy(p => p.teamNames[0]).ThenByDescending(p => p.getCurrentCost()).ToList();
+
+            Console.Out.WriteLine("highest cost: " + players.Max(p => p.getCurrentCost()));
 
             string teamname = "";
             foreach (Player p in players)
             {
-                if(p.teamName != teamname)
+                if(p.teamNames[0] != teamname)
                 {
-                    teamname = p.teamName;
+                    teamname = p.teamNames[0];
                     Console.Out.WriteLine("==================");
                     Console.Out.WriteLine(teamname);
                 }
 
                 Console.Out.WriteLine(p.name + " " + p.getCurrentCost());
+                p.tasks = p.tasks.OrderBy(t => t.startTime).ToList();
+
+                int tasksOnSameDay = 0;
+                DateTime previousTaskDate = new DateTime();
                 foreach(Task t in p.tasks)
                 {
-                    Console.Out.WriteLine("Match: " + p.getMatchOnDay(t.startTime) + "\tTask: " + t + "\tcost: " + p.getCost(t));
+                    if(previousTaskDate == t.startTime.Date)
+                    {
+                        tasksOnSameDay++;
+                    }
 
+                    Console.Out.WriteLine("Match: " + p.getMatchOnDay(t.startTime) + "\tTask: " + t + "\tcost: " + p.getCostCurrentTask(t).ToString("n2"));
+
+                    previousTaskDate = t.startTime.Date;
                 }
+
+                if(tasksOnSameDay > 0)
+                {
+                    Console.Out.WriteLine("WARNING!! MULTIPLE TASKS ON SAME DAY: " + tasksOnSameDay);
+                }
+
                 Console.Out.WriteLine("");
             }
 
@@ -129,8 +151,8 @@ namespace Scheduling
                 var playersOnTask = players.Where(p => p.tasks.Contains(t)).ToList();
                 if(playersOnTask.Count > 0)
                 {
-                    Console.Out.WriteLine((playersOnTask[0].name + ": ").PadRight(25) + t + "\tcost: " + playersOnTask[0].getCost(t));
-                    dayCost += playersOnTask[0].getCost(t);
+                    Console.Out.WriteLine((playersOnTask[0].name + ": ").PadRight(25) + t + "\tcost: " + playersOnTask[0].getCostCurrentTask(t));
+                    dayCost += playersOnTask[0].getCostCurrentTask(t);
                 } else
                 {
                     Console.Out.WriteLine("!!!!!!!!!!!!!!!!!!!!!!! Noone found for task: " + t);
@@ -161,8 +183,8 @@ namespace Scheduling
                         if (!p2.canPerformTaskOnDay(task1.startTime)) continue;
                         if (p2.hasMatchOnTime(task1.startTime, task1.endTime)) continue;
 
-                        double p1Task1Cost = p1.getCost(task1);
-                        double p2Task1Cost = p2.getCost(task1);
+                        double p1Task1Cost = p1.getGainRemoveTask(task1);
+                        double p2Task1Cost = p2.getCostNewTask(task1);
 
                         //p2 trade task
                         foreach (Task task2 in p2.tasks)
@@ -176,8 +198,8 @@ namespace Scheduling
 
 
 
-                            double p1Task2Cost = p1.getCost(task2);
-                            double p2Task2Cost = p2.getCost(task2);
+                            double p1Task2Cost = p1.getCostNewTask(task2);
+                            double p2Task2Cost = p2.getGainRemoveTask(task2);
 
                             double newScoreP1 = currentScoreP1 - p1Task1Cost + p1Task2Cost;
                             double newScoreP2 = currentScoreP2 - p2Task2Cost + p2Task1Cost;
@@ -234,26 +256,25 @@ namespace Scheduling
                 //the players task that is to be given away
                 foreach (Task task in p.tasks)
                 {
-                    double oldScore = Math.Pow(p.getCurrentCost(), 2) - Math.Pow(p.getCurrentCost() - p.getCost(task), 2);
+                    //current player cost - new player cost
+                    double scoreGainByRemoval = Math.Pow(p.getCurrentCost(), 2) - Math.Pow(p.getCurrentCost() - p.getGainRemoveTask(task), 2);
 
                     foreach (Player playerUnderConsideration in players)
                     {
                         if (p == playerUnderConsideration) continue;
                         if (!playerUnderConsideration.isQualified(task)) continue;
                         if (playerUnderConsideration.isBusyOnTime(task.startTime, task.endTime)) continue;
-
-                        double newCost = playerUnderConsideration.getCost(task);
-                        if (newCost < 0)
-                        {
-                            continue;
-                        }
+                        if (!playerUnderConsideration.canPerformTaskOnDay(task.startTime.Date)) continue;
 
                         //new cost - current cost
-                        double scoreCost = Math.Pow(playerUnderConsideration.getCurrentCost() + playerUnderConsideration.getCost(task), 2) - Math.Pow(playerUnderConsideration.getCurrentCost(), 2);
-                        double score = oldScore - scoreCost;
+                        double scoreCost = Math.Pow(playerUnderConsideration.getCurrentCost() + playerUnderConsideration.getCostNewTask(task), 2) - Math.Pow(playerUnderConsideration.getCurrentCost(), 2);
+                        double score = scoreGainByRemoval - scoreCost;
 
                         if (score > currentLargestImprovment || (score == currentLargestImprovment && playerUnderConsideration.isMoreQualified(alternativePlayer, task) ))
                         {
+                            //Console.Out.WriteLine("New largest improvement: " + score + " = " + scoreGainByRemoval + " - " + scoreCost);
+                            //Console.Out.WriteLine("scoreCost = (" + playerUnderConsideration.getCurrentCost() + " + " + playerUnderConsideration.getCostNewTask(task) + ")^2 - " + playerUnderConsideration.getCurrentCost());
+
                             currentLargestImprovment = score;
                             alternativePlayer = playerUnderConsideration;
                             bestMoveSuggestion = task;
@@ -267,9 +288,24 @@ namespace Scheduling
                     //Console.Out.WriteLine("From " + p);
                     //Console.Out.WriteLine("To " + alternativePlayer);
 
+                    //double costBeforeP1 = p.getCurrentCost();
+                    //double costBeforeP2 = alternativePlayer.getCurrentCost();
 
                     p.removeTask(bestMoveSuggestion);
                     alternativePlayer.addTask(bestMoveSuggestion);
+
+                    //double costAfterP1 = p.getCurrentCost();
+                    //double costAfterP2 = alternativePlayer.getCurrentCost();
+
+                    //if(Math.Pow(costAfterP1, 2) + Math.Pow(costAfterP2, 2) > Math.Pow(costBeforeP1, 2) + Math.Pow(costBeforeP2, 2))
+                    //{
+                    //    Console.Out.WriteLine("Before: " + costBeforeP1 + " + " + costBeforeP2);
+                    //    Console.Out.WriteLine("After: " + costAfterP1 + " + " + costAfterP2);
+
+                    //    Console.Out.WriteLine("oops");
+                    //}
+
+
 
                 }
 
@@ -287,7 +323,7 @@ namespace Scheduling
                 {
                     if (!p.hasTaskOnTime(t.startTime, t.endTime) && !p.hasMatchOnTime(t.startTime, t.endTime) && p.canPerformTaskOnDay(t.startTime) /*&& !p.hasTaskOnDate(t.startTime.Date)*/)
                     {
-                        double currentCost = p.getCost(t);
+                        double currentCost = p.getCostNewTask(t);
                         if (currentCost >= 0 && currentCost < minCost)
                         {
                             minCost = currentCost;

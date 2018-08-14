@@ -24,9 +24,14 @@ namespace Scheduling
         //players
         private Player createPlayerFromString(string playerString)
         {
-            string[] tokens = playerString.Split(',');
+            string[] tokens = playerString.Split(new char[] { ',', ';', '\t' });
+            string name = tokens[0].Trim();
 
-            return new Player(tokens[0].Trim(), tokens[1].Trim(), tokens[2].Trim(), dateFromString(tokens[3], "00:00"));
+            if (name.Length < 1) return null;
+
+            string teamName = tokens[1].Trim();
+
+            return new Player(name, teamName, tokens[2].Trim(), dateFromString(tokens[3], "00:00"));
         }
 
         //matches
@@ -71,7 +76,52 @@ namespace Scheduling
             file.Close();
 
             return dateExceptions;
+        }
 
+
+        public List<DateException> readExceptionsFromProgram(string exceptionPath)
+        {
+            List<DateException> dateExceptions = new List<DateException>();
+
+            string line;
+
+            System.IO.StreamReader file = new System.IO.StreamReader(exceptionPath);
+
+            //skip first line (headers)
+            file.ReadLine();
+
+            while ((line = file.ReadLine()) != null)
+            {
+                if (line.Trim().Length == 0) continue;
+
+                var de = createDateExceptionFromProgramString(line);
+                if(de != null) dateExceptions.Add(de);
+            }
+
+            file.Close();
+
+            return dateExceptions;
+        }
+
+        //date busy
+        private DateException createDateExceptionFromProgramString(string dateExceptionString)
+        {
+            string[] tokens = dateExceptionString.Split(',');
+
+            string date = tokens[0];
+
+            if (date.Length < 1) return null;
+
+            string gym = tokens[11];
+
+            if (gym != "Kruisboog")
+            {
+                string awayTeam = tokens[3];
+                
+                return new DateException(dateFromString(date, "00:00").Date, awayTeam);
+            }
+
+            return null;
         }
 
         public List<BarShift> readBarShifts(string barPath)
@@ -130,14 +180,65 @@ namespace Scheduling
             while ((line = file.ReadLine()) != null)
             {
                 if (line.Trim().Length == 0) continue;
-                
-                players.Add(createPlayerFromString(line));
+                var player = createPlayerFromString(line);
+
+                if (player != null) players.Add(player);
+                else Console.Out.WriteLine("Skipped reading player on line: [" + line + "]");
             }
 
             file.Close();
 
 
             return players;
+        }
+
+        public List<Match> readProgram(string path)
+        {
+            List<Match> matches = new List<Match>();
+
+            string line;
+            
+            System.IO.StreamReader file = new System.IO.StreamReader(path);
+
+            //skip first line
+            file.ReadLine();
+
+            while ((line = file.ReadLine()) != null)
+            {
+                var match = createMatchFromProgramString(line);
+
+                if (match != null) matches.Add(match);
+            }
+
+            file.Close();
+
+            return matches;
+        }
+
+        //matches
+        private Match createMatchFromProgramString(string matchString)
+        {
+            string[] tokens = matchString.Split(new char[] { ',', ';', '\t' });
+
+            string date = tokens[0];
+            string time = tokens[1];
+            string homeTeam = tokens[2];
+            string awayTeam = tokens[3];
+            string gym = tokens[11];
+
+            if (date.Length < 1) return null;
+            var matchDate = dateFromString(date, time);
+
+            if (matchDate.DayOfWeek != DayOfWeek.Saturday)
+                return null;
+
+            if (gym == "Kruisboog")
+            {
+                //official start time
+                return new Match(homeTeam, matchDate);
+            } 
+
+            return null;
         }
 
         //matches

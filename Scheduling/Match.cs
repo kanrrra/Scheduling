@@ -18,8 +18,13 @@ namespace Scheduling
         public Match(string teamName, DateTime startTime)
         {
             this.teamName = teamName;
+
             this.startTime = startTime;
-            endTime = startTime.AddHours(2);
+
+            //revert timechange for late/short matches, otherwise the duration of 90 minutes results in the followup team not being able to ref/count
+            if (this.startTime.Minute == 45)
+                this.startTime = this.startTime.AddMinutes(-15);
+            endTime = this.startTime.AddHours(2);
         }
 
         public void SetTeam(Team t)

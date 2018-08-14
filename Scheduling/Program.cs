@@ -12,23 +12,29 @@ namespace Scheduling
         static string playersPath = "C:/data/players.csv";
         static string teamsPath = "C:/data/teams.csv";
         static string barPath = "C:/data/bar.csv";
-        static string exceptionPath = "C:/data/exceptions.csv";
 
         static void Main(string[] args)
         {
             Reader r = new Reader();
             
-            List<Match> matches = r.readMatches(matchPath);
+            List<Match> matches = r.readProgram(matchPath);
             List<Player> players = r.readPlayers(playersPath);
             List<Team> teams = r.readTeams(teamsPath);
             List<BarShift> bar = r.readBarShifts(barPath);
-            List<DateException> dateExceptions = r.readExceptions(exceptionPath);
+            List<DateException> dateExceptions = r.readExceptionsFromProgram(matchPath);
 
             Planner p = new Planner(matches, players, teams, bar, dateExceptions);
 
-
+            /*
             foreach (Team t in teams){
                 Console.Out.WriteLine(t);
+
+                Console.Out.WriteLine("Matches: ");
+                foreach(Match m in t.matches)
+                {
+                    Console.Out.WriteLine("\t" + m);
+                }
+                Console.Out.WriteLine("");
 
                 Console.Out.WriteLine("Days busy: ");
                 foreach(DateTime dt in t.unavailableDates)
@@ -37,7 +43,7 @@ namespace Scheduling
                 }
                 Console.Out.WriteLine("");
             }
-
+            */
 
 
             p.generateSchema();

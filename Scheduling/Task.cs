@@ -18,6 +18,8 @@ namespace Scheduling
 
         public Player person;
 
+        public Task linkedTask = null;
+
         public Task(string note, TaskType type, DateTime start, DateTime end, int minimumAge, RefereeQualification refereeQualification)
         {
             this.note = note;
@@ -46,6 +48,16 @@ namespace Scheduling
             return name.PadRight(15) + "\t" + note.PadRight(11) + " " + startTime + "-" + endTime.TimeOfDay;
         }
 
+        public void SetLinkedTask(Task t)
+        {
+            linkedTask = t;
+        }
+
+        public Task GetLinkedTask()
+        {
+            return linkedTask;
+        }
+
         public DateTime getAgeQualification()
         {
             return startTime.Date.AddYears(-minimumAge);
@@ -54,6 +66,13 @@ namespace Scheduling
         public RefereeQualification GetRefereeQualification()
         {
             return refereeQualification;
+        }
+
+        public bool LinkedTaskScheduledToSameTeam()
+        {
+            if (linkedTask == null) return false;
+
+            return false;
         }
     }
 

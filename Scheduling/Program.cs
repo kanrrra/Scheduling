@@ -23,7 +23,7 @@ namespace Scheduling
             List<BarShift> bar = r.readBarShifts(barPath);
             List<DateException> dateExceptions = r.readExceptionsFromProgram(matchPath);
 
-            Planner p = new Planner(matches, players, teams, bar, dateExceptions);
+            Planner planner = new Planner(matches, players, teams, bar, dateExceptions);
 
             /*
             foreach (Team t in teams){
@@ -46,7 +46,99 @@ namespace Scheduling
             */
 
 
-            p.generateSchema();
+            planner.generateSchema();
+
+            planner.fillBarShifts(bar);
+            string barSchedule = "";
+
+            foreach(BarShift bs in bar)
+            {
+                barSchedule += bs + "\n";
+            }
+            System.IO.File.WriteAllText("bar schedule.csv", barSchedule);
+
+            
+            Console.Out.WriteLine("=====================================================");
+
+
+            players = players.OrderBy(p => p.teamNames[0]).ThenByDescending(p => p.getCurrentCost()).ToList();
+
+            Console.Out.WriteLine("highest cost: " + players.Max(p => p.getCurrentCost()));
+
+            string teamname = "";
+            foreach (Player p in players)
+            {
+                if(p.teamNames[0] != teamname)
+                {
+                    teamname = p.teamNames[0];
+                    Console.Out.WriteLine("==================");
+                    Console.Out.WriteLine(teamname);
+                }
+
+                Console.Out.WriteLine(p.name + " " + p.getCurrentCost());
+                p.tasks = p.tasks.OrderBy(t => t.startTime).ToList();
+
+                int tasksOnSameDay = 0;
+                DateTime previousTaskDate = new DateTime();
+                foreach(Task t in p.tasks)
+                {
+                    if(previousTaskDate == t.startTime.Date)
+                    {
+                        tasksOnSameDay++;
+                    }
+
+                    var myMatches = p.getMatchOnDay(t.startTime).Where(m => m != null).ToList();
+                    string matchString = "";
+                    if(myMatches.Count > 0)
+                    {
+                        matchString = myMatches.Select(m => m.ToString()).Aggregate((a, b) => a + "." + b);
+                    }
+                    Console.Out.WriteLine("Match: " + matchString.PadLeft(50) + "\tTask: " + t + "\tcost: " + p.getCostCurrentTask(t).ToString("n2"));
+
+                    previousTaskDate = t.startTime.Date;
+                }
+
+                if(tasksOnSameDay > 0)
+                {
+                    Console.Out.WriteLine("WARNING!! MULTIPLE TASKS ON SAME DAY: " + tasksOnSameDay);
+                }
+
+                Console.Out.WriteLine("");
+            }
+
+            Console.Out.WriteLine("=====================================================");
+
+            var tasks = planner.tasks.OrderBy(t => t.startTime).ToList();
+
+            DateTime day = new DateTime();
+            double dayCost = 0;
+            foreach(Task t in tasks)
+            {
+                if(day != t.startTime.Date)
+                {
+                    Console.Out.WriteLine("Daycost: " + dayCost);
+                    dayCost = 0;
+
+                    day = t.startTime.Date;
+                    Console.Out.WriteLine("==================\n");
+                }
+
+                var playersOnTask = players.Where(p => p.tasks.Contains(t)).ToList();
+                if(playersOnTask.Count > 0)
+                {
+                    Console.Out.WriteLine((playersOnTask[0].name + ": ").PadRight(25) + t + "\tcost: " + playersOnTask[0].getCostCurrentTask(t));
+                    dayCost += playersOnTask[0].getCostCurrentTask(t);
+                } else
+                {
+                    Console.Out.WriteLine("!!!!!!!!!!!!!!!!!!!!!!! Noone found for task: " + t);
+                }
+            }
+            Console.Out.WriteLine("Daycost: " + dayCost);
+
+
+
+
+
 
             Console.In.ReadLine();
         }

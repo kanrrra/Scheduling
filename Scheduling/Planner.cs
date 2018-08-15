@@ -7,10 +7,10 @@ namespace Scheduling
     class Planner
     {
         List<Match> matches;
-        List<Task> tasks = new List<Task>();
+        public List<Task> tasks = new List<Task>();
         List<Player> players;
         Dictionary<string, Team> teams = new Dictionary<string, Team>();
-
+        
         public Planner(List<Match> matchesHolder, List<Player> playersHolder, List<Team> teamsHolder, List<BarShift> barShifts, List<DateException> dateExceptions)
         {
             this.players = playersHolder;
@@ -61,12 +61,49 @@ namespace Scheduling
 
             foreach(BarShift bs in barShifts)
             {
-                tasks.Add(new Task("", TaskType.BarKeeper, bs.startTime, bs.endTime, 16, Qualifications.RefereeQualification.None));
-                tasks.Add(new Task("", TaskType.BarKeeper, bs.startTime, bs.endTime, 16, Qualifications.RefereeQualification.None));
+                Task prevTask = null;
+                foreach(string playerName in bs.personel)
+                {
+                    if(playerName.Length < 1)
+                    {
+                        var shiftTask = new Task("", TaskType.BarKeeper, bs.startTime, bs.endTime, 16, Qualifications.RefereeQualification.None);
+                        tasks.Add(shiftTask);
+
+                        if(prevTask == null)
+                        {
+                            prevTask = shiftTask;
+                        } else
+                        {
+                            prevTask.SetLinkedTask(shiftTask);
+                            shiftTask.SetLinkedTask(prevTask);
+                        }
+                    }
+                }
             }
 
             tasks = tasks.OrderByDescending(t => t.GetRefereeQualification()).ThenByDescending(t => t.getAgeQualification()).ToList();
 
+        }
+
+        public void fillBarShifts(List<BarShift> shifts)
+        {
+            foreach(BarShift bs in shifts)
+            {
+                int expectedTaskCount = bs.personel.Where(p => p.Length < 1).ToList().Count;
+
+                List<Task> relevantShifts = tasks.Where(t => t.type == TaskType.BarKeeper && t.startTime == bs.startTime).ToList();
+
+                if(relevantShifts.Count != expectedTaskCount)
+                {
+                    throw new Exception("Unexpected task cout: " + relevantShifts.Count + " instead of " + expectedTaskCount);
+                }
+
+                for(int i = 0; i < relevantShifts.Count; i++)
+                {
+                    var p = relevantShifts.ElementAt(i).person;
+                    bs.personel[bs.personel.Length - i - 1] = p.teamNames[0] + ": " + p.name;
+                }
+            }
         }
 
         //do stuff
@@ -88,77 +125,6 @@ namespace Scheduling
                 }
                 sos = newSos;
             }
-
-            Console.Out.WriteLine("=====================================================");
-
-
-            players = players.OrderBy(p => p.teamNames[0]).ThenByDescending(p => p.getCurrentCost()).ToList();
-
-            Console.Out.WriteLine("highest cost: " + players.Max(p => p.getCurrentCost()));
-
-            string teamname = "";
-            foreach (Player p in players)
-            {
-                if(p.teamNames[0] != teamname)
-                {
-                    teamname = p.teamNames[0];
-                    Console.Out.WriteLine("==================");
-                    Console.Out.WriteLine(teamname);
-                }
-
-                Console.Out.WriteLine(p.name + " " + p.getCurrentCost());
-                p.tasks = p.tasks.OrderBy(t => t.startTime).ToList();
-
-                int tasksOnSameDay = 0;
-                DateTime previousTaskDate = new DateTime();
-                foreach(Task t in p.tasks)
-                {
-                    if(previousTaskDate == t.startTime.Date)
-                    {
-                        tasksOnSameDay++;
-                    }
-
-                    Console.Out.WriteLine("Match: " + p.getMatchOnDay(t.startTime) + "\tTask: " + t + "\tcost: " + p.getCostCurrentTask(t).ToString("n2"));
-
-                    previousTaskDate = t.startTime.Date;
-                }
-
-                if(tasksOnSameDay > 0)
-                {
-                    Console.Out.WriteLine("WARNING!! MULTIPLE TASKS ON SAME DAY: " + tasksOnSameDay);
-                }
-
-                Console.Out.WriteLine("");
-            }
-
-            Console.Out.WriteLine("=====================================================");
-
-            tasks = tasks.OrderBy(t => t.startTime).ToList();
-
-            DateTime day = new DateTime();
-            double dayCost = 0;
-            foreach(Task t in tasks)
-            {
-                if(day != t.startTime.Date)
-                {
-                    Console.Out.WriteLine("Daycost: " + dayCost);
-                    dayCost = 0;
-
-                    day = t.startTime.Date;
-                    Console.Out.WriteLine("==================\n");
-                }
-
-                var playersOnTask = players.Where(p => p.tasks.Contains(t)).ToList();
-                if(playersOnTask.Count > 0)
-                {
-                    Console.Out.WriteLine((playersOnTask[0].name + ": ").PadRight(25) + t + "\tcost: " + playersOnTask[0].getCostCurrentTask(t));
-                    dayCost += playersOnTask[0].getCostCurrentTask(t);
-                } else
-                {
-                    Console.Out.WriteLine("!!!!!!!!!!!!!!!!!!!!!!! Noone found for task: " + t);
-                }
-            }
-            Console.Out.WriteLine("Daycost: " + dayCost);
         }
 
 
@@ -204,9 +170,8 @@ namespace Scheduling
                             double newScoreP1 = currentScoreP1 - p1Task1Cost + p1Task2Cost;
                             double newScoreP2 = currentScoreP2 - p2Task2Cost + p2Task1Cost;
 
-                            
-
-                            if (Math.Pow(newScoreP1, 2) + Math.Pow(newScoreP2, 2) < Math.Pow(currentScoreP1, 2) + Math.Pow(currentScoreP2, 2))
+                            //after < before
+                            if ((Math.Pow(newScoreP1, 2) + Math.Pow(newScoreP2, 2)) < (Math.Pow(currentScoreP1, 2) + Math.Pow(currentScoreP2, 2)))
                             {
                                 //Console.Out.WriteLine("Switching " + task1 + " <> " + task2 + "\nbetween: " + p1 + "" + p2);
                                 
@@ -256,8 +221,20 @@ namespace Scheduling
                 //the players task that is to be given away
                 foreach (Task task in p.tasks)
                 {
+                    double sameTaskBeforeMultiplier = 1.0;
+                    if (task.type == TaskType.BarKeeper)
+                    {
+                        Player linkedPlayer = players.Find(p1 => p1.tasks.Any(t => t == task.linkedTask));
+                        if (p.teams.Intersect(linkedPlayer.teams).ToList().Count > 0)
+                        {
+                            //same team
+                            sameTaskBeforeMultiplier = 0.9;
+                        }
+                    }
+
                     //current player cost - new player cost
-                    double scoreGainByRemoval = Math.Pow(p.getCurrentCost(), 2) - Math.Pow(p.getCurrentCost() - p.getGainRemoveTask(task), 2);
+                    double scoreGainByRemoval = Math.Pow(p.getCurrentCost(), 2) - Math.Pow(p.getCurrentCost() - p.getGainRemoveTask(task) * sameTaskBeforeMultiplier, 2);
+
 
                     foreach (Player playerUnderConsideration in players)
                     {
@@ -324,6 +301,7 @@ namespace Scheduling
                     if (!p.hasTaskOnTime(t.startTime, t.endTime) && !p.hasMatchOnTime(t.startTime, t.endTime) && p.canPerformTaskOnDay(t.startTime) /*&& !p.hasTaskOnDate(t.startTime.Date)*/)
                     {
                         double currentCost = p.getCostNewTask(t);
+
                         if (currentCost >= 0 && currentCost < minCost)
                         {
                             minCost = currentCost;

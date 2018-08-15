@@ -49,7 +49,9 @@ namespace Scheduling
 
         public override string ToString()
         {
-            return teamName + " " + startTime;
+            string shortTeamName = teamName.Substring(teamName.IndexOf("Taurus ") + 7);
+
+            return shortTeamName + " " + startTime;
         }
 
         public bool requiresReferee()

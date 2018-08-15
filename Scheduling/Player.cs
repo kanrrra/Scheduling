@@ -13,7 +13,7 @@ namespace Scheduling
         private readonly RefereeQualification refereeQualification;
         private readonly DateTime dateOfBirth;
 
-        private List<Team> teams = new List<Team>();
+        public List<Team> teams = new List<Team>();
         public List<Task> tasks = new List<Task>();
 
 
@@ -40,6 +40,7 @@ namespace Scheduling
         public void addTask(Task t)
         {
             tasks.Add(t);
+            t.person = this;
         }
 
         public void removeTask(Task t)
@@ -76,7 +77,7 @@ namespace Scheduling
 
         public List<Match> getMatchOnDay(DateTime day)
         {
-            return teams.Select(t =>  t.matches.Find(m => day.Date == m.GetPlayerStartTime().Date)).ToList();
+            return teams.Where(t => t.matches.Any(m => day.Date == m.GetPlayerStartTime().Date)).Select(t =>  t.matches.Find(m => day.Date == m.GetPlayerStartTime().Date)).ToList();
         }
 
         public bool isBusyOnTime(DateTime startTime, DateTime endTime)
@@ -86,7 +87,7 @@ namespace Scheduling
 
         public bool canPerformTaskOnDay(DateTime dateTime)
         {
-            return (teams[0].allowSchedulingOnNonMatchDay && !teams.Any(t => t.unavailableDates.Contains(dateTime.Date))) || teams.Any(t => t.matches.Any(m => dateTime.Date == m.GetPlayerStartTime().Date));
+            return !teams.Any(t => t.unavailableDates.Contains(dateTime.Date)) && (teams[0].allowSchedulingOnNonMatchDay || teams.Any(t => t.matches.Any(m => dateTime.Date == m.GetPlayerStartTime().Date)));
         }
 
         public bool isQualified(Task t)
@@ -142,6 +143,11 @@ namespace Scheduling
             }
 
             double timeCost = getTimeCost(t);
+            if (t.LinkedTaskScheduledToSameTeam())
+            {
+                timeCost *= 0.9;
+            }
+
             if (timeCost < 0)
             {
                 throw new Exception();
@@ -200,7 +206,7 @@ namespace Scheduling
 
             if(minWaitTime != double.MaxValue)
             {
-                return duration + Math.Sqrt(minWaitTime);
+                return duration + Math.Min(1.5, Math.Sqrt(minWaitTime));
             }
 
             //no match on this day

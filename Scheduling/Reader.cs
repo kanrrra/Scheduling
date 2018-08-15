@@ -54,9 +54,11 @@ namespace Scheduling
         //bar
         private BarShift createBarshiftFromString(string barString)
         {
+            if (barString.Trim().Length < 1) return null;
+
             string[] tokens = barString.Split(',');
 
-            return new BarShift(dateFromString(tokens[0], tokens[1]), dateFromString(tokens[0], tokens[2]));
+            return new BarShift(dateFromString(tokens[0], tokens[1]), dateFromString(tokens[0], tokens[2]), tokens[3], tokens[4]);
         }
 
         public List<DateException> readExceptions(string exceptionPath)
@@ -135,7 +137,8 @@ namespace Scheduling
             {
                 if (line.Trim().Length == 0) continue;
 
-                barshifts.Add(createBarshiftFromString(line));
+                var bs = createBarshiftFromString(line);
+                if(bs != null) barshifts.Add(bs);
             }
 
             file.Close();

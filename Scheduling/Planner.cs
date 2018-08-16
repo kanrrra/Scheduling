@@ -221,19 +221,8 @@ namespace Scheduling
                 //the players task that is to be given away
                 foreach (Task task in p.tasks)
                 {
-                    double sameTaskBeforeMultiplier = 1.0;
-                    if (task.type == TaskType.BarKeeper)
-                    {
-                        Player linkedPlayer = players.Find(p1 => p1.tasks.Any(t => t == task.linkedTask));
-                        if (p.teams.Intersect(linkedPlayer.teams).ToList().Count > 0)
-                        {
-                            //same team
-                            sameTaskBeforeMultiplier = 0.9;
-                        }
-                    }
-
-                    //current player cost - new player cost
-                    double scoreGainByRemoval = Math.Pow(p.getCurrentCost(), 2) - Math.Pow(p.getCurrentCost() - p.getGainRemoveTask(task) * sameTaskBeforeMultiplier, 2);
+                                        //current player cost - new player cost
+                    double scoreGainByRemoval = Math.Pow(p.getCurrentCost(), 2) - Math.Pow(p.getCurrentCost() - p.getGainRemoveTask(task), 2);
 
 
                     foreach (Player playerUnderConsideration in players)

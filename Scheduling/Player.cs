@@ -16,8 +16,11 @@ namespace Scheduling
         public List<Team> teams = new List<Team>();
         public List<Task> tasks = new List<Task>();
 
+        double SAME_TEAM_BARSHIFT_MULTIPLIER = 0.8;
+        private double accruedCost;
 
-        public Player(string name, string teamName, string refereeQualificationText, DateTime dateOfBirth)
+
+        public Player(string name, string teamName, string refereeQualificationText, DateTime dateOfBirth, double accruedCost)
         {
             this.name = name;
 
@@ -30,6 +33,7 @@ namespace Scheduling
 
             this.refereeQualification = textLabelToReferee(refereeQualificationText);
             this.dateOfBirth = dateOfBirth;
+            this.accruedCost = accruedCost;
         }
 
         public void addTeam(Team t)
@@ -52,7 +56,7 @@ namespace Scheduling
         {
             double cost = tasks.Sum(t => getCostCurrentTask(t));
 
-            return cost;
+            return cost + accruedCost;
         }
 
         public int hasTaskOnDate(DateTime date)
@@ -102,6 +106,10 @@ namespace Scheduling
             {
                 throw new Exception();
             }
+            if (t.LinkedTaskScheduledToSameTeam(teams))
+            {
+                timeCost *= SAME_TEAM_BARSHIFT_MULTIPLIER;
+            }
 
             //pref not multiple matches on same day
             int tasksOnDate = hasTaskOnDate(t.startTime.Date);
@@ -123,6 +131,10 @@ namespace Scheduling
             {
                 throw new Exception();
             }
+            if (t.LinkedTaskScheduledToSameTeam(teams))
+            {
+                timeCost *= SAME_TEAM_BARSHIFT_MULTIPLIER;
+            }
 
             //pref not multiple matches on same day
             int tasksOnDate = hasTaskOnDate(t.startTime.Date);
@@ -143,9 +155,9 @@ namespace Scheduling
             }
 
             double timeCost = getTimeCost(t);
-            if (t.LinkedTaskScheduledToSameTeam())
+            if (t.LinkedTaskScheduledToSameTeam(teams))
             {
-                timeCost *= 0.9;
+                timeCost *= SAME_TEAM_BARSHIFT_MULTIPLIER;
             }
 
             if (timeCost < 0)
@@ -231,6 +243,11 @@ namespace Scheduling
             }
 
             return id;
+        }
+
+        public string ToCSV()
+        {
+            return name + "," + teamNames.Aggregate((a, b) => a + "." + b) + "," + refereeQualification + "," + dateOfBirth.ToShortDateString() + "," + getCurrentCost();
         }
 
         internal bool isMoreQualified(Player alternativePlayer, Task task)

@@ -20,9 +20,11 @@ namespace Scheduling
 
         public Task linkedTask = null;
 
+        public string Note { get => note; private set => note = value; }
+
         public Task(string note, TaskType type, DateTime start, DateTime end, int minimumAge, RefereeQualification refereeQualification)
         {
-            this.note = note;
+            this.Note = note;
             this.type = type;
             this.startTime = start;
             this.endTime = end;
@@ -45,7 +47,12 @@ namespace Scheduling
                 name = "Referee";
             }
 
-            return name.PadRight(15) + "\t" + note.PadRight(11) + " " + startTime + "-" + endTime.TimeOfDay;
+            return name.PadRight(15) + "\t" + Note.PadRight(11) + " " + startTime + "-" + endTime.TimeOfDay;
+        }
+
+        public string ToCSV()
+        {
+            return startTime.ToShortDateString() + "," + startTime.ToShortTimeString() + "," + Note + "," + type + "," + person.name;
         }
 
         public void SetLinkedTask(Task t)
@@ -68,9 +75,12 @@ namespace Scheduling
             return refereeQualification;
         }
 
-        public bool LinkedTaskScheduledToSameTeam()
+        public bool LinkedTaskScheduledToSameTeam(List<Team> t)
         {
             if (linkedTask == null) return false;
+            if (linkedTask.person == null) return false;
+
+            if (linkedTask.person.teams.Intersect(t).ToList().Count > 0) return true;
 
             return false;
         }

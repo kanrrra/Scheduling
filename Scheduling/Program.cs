@@ -47,7 +47,9 @@ namespace Scheduling
 
 
             planner.generateSchema();
+            var tasks = planner.tasks.OrderBy(t => t.startTime).ThenBy(t => t.Note).ToList();
 
+            //write bar schedule to csv
             planner.fillBarShifts(bar);
             string barSchedule = "";
 
@@ -56,13 +58,24 @@ namespace Scheduling
                 barSchedule += bs + "\n";
             }
             System.IO.File.WriteAllText("bar schedule.csv", barSchedule);
-
             
-            Console.Out.WriteLine("=====================================================");
-
-
             players = players.OrderBy(p => p.teamNames[0]).ThenByDescending(p => p.getCurrentCost()).ToList();
 
+            string playerList = "";
+            foreach(Player p in players)
+            {
+                playerList += p.ToCSV() + "\n";
+            }
+            System.IO.File.WriteAllText("players.csv", playerList);
+
+            string schedule = "";
+            foreach (Task t in tasks)
+            {
+                if(t.type != TaskType.BarKeeper) schedule += t.ToCSV() + "\n";
+            }
+            System.IO.File.WriteAllText("schedule.csv", schedule);
+
+            //Console.Out.WriteLine("=====================================================");
             Console.Out.WriteLine("highest cost: " + players.Max(p => p.getCurrentCost()));
 
             string teamname = "";
@@ -108,7 +121,6 @@ namespace Scheduling
 
             Console.Out.WriteLine("=====================================================");
 
-            var tasks = planner.tasks.OrderBy(t => t.startTime).ToList();
 
             DateTime day = new DateTime();
             double dayCost = 0;

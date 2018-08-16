@@ -30,8 +30,9 @@ namespace Scheduling
             if (name.Length < 1) return null;
 
             string teamName = tokens[1].Trim();
+            double currentCost = tokens.Length > 4 ? double.Parse(tokens[4]) : 0;
 
-            return new Player(name, teamName, tokens[2].Trim(), dateFromString(tokens[3], "00:00"));
+            return new Player(name, teamName, tokens[2].Trim(), dateFromString(tokens[3], "00:00"), currentCost);
         }
 
         //matches

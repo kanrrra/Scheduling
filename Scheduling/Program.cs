@@ -88,35 +88,7 @@ namespace Scheduling
                     Console.Out.WriteLine(teamname);
                 }
 
-                Console.Out.WriteLine(p.name + " " + p.getCurrentCost());
-                p.tasks = p.tasks.OrderBy(t => t.startTime).ToList();
-
-                int tasksOnSameDay = 0;
-                DateTime previousTaskDate = new DateTime();
-                foreach(Task t in p.tasks)
-                {
-                    if(previousTaskDate == t.startTime.Date)
-                    {
-                        tasksOnSameDay++;
-                    }
-
-                    var myMatches = p.getMatchOnDay(t.startTime).Where(m => m != null).ToList();
-                    string matchString = "";
-                    if(myMatches.Count > 0)
-                    {
-                        matchString = myMatches.Select(m => m.ToString()).Aggregate((a, b) => a + "." + b);
-                    }
-                    Console.Out.WriteLine("Match: " + matchString.PadLeft(50) + "\tTask: " + t + "\tcost: " + p.getCostCurrentTask(t).ToString("n2"));
-
-                    previousTaskDate = t.startTime.Date;
-                }
-
-                if(tasksOnSameDay > 0)
-                {
-                    Console.Out.WriteLine("WARNING!! MULTIPLE TASKS ON SAME DAY: " + tasksOnSameDay);
-                }
-
-                Console.Out.WriteLine("");
+                printPlayerTasks(p);
             }
 
             Console.Out.WriteLine("=====================================================");
@@ -148,11 +120,55 @@ namespace Scheduling
             Console.Out.WriteLine("Daycost: " + dayCost);
 
 
+            Console.Out.WriteLine("=====================================================");
+            foreach (Player p in players)
+            {
+                if (p.IsQualified(Qualifications.RefereeQualification.VS2))
+                {
+                    printPlayerTasks(p);
+                }
+            }
+
 
 
 
 
             Console.In.ReadLine();
+        }
+
+
+        static void printPlayerTasks(Player p)
+        {
+
+            Console.Out.WriteLine(p.name + " " + p.getCurrentCost());
+            p.tasks = p.tasks.OrderBy(t => t.startTime).ToList();
+
+            int tasksOnSameDay = 0;
+            DateTime previousTaskDate = new DateTime();
+            foreach (Task t in p.tasks)
+            {
+                if (previousTaskDate == t.startTime.Date)
+                {
+                    tasksOnSameDay++;
+                }
+
+                var myMatches = p.getMatchOnDay(t.startTime).Where(m => m != null).ToList();
+                string matchString = "";
+                if (myMatches.Count > 0)
+                {
+                    matchString = myMatches.Select(m => m.ToString()).Aggregate((a, b) => a + "." + b);
+                }
+                Console.Out.WriteLine("Match: " + matchString.PadRight(50) + "\tTask: " + t + "\tcost: " + p.getCostCurrentTask(t).ToString("n2"));
+
+                previousTaskDate = t.startTime.Date;
+            }
+
+            if (tasksOnSameDay > 0)
+            {
+                Console.Out.WriteLine("WARNING!! MULTIPLE TASKS ON SAME DAY: " + tasksOnSameDay);
+            }
+
+            Console.Out.WriteLine("");
         }
     }
 }

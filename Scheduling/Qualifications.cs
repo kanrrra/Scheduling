@@ -32,6 +32,47 @@ namespace Scheduling
             }
         }
 
+        public enum AgeGroup
+        {
+            Mini,
+            C,
+            B,
+            A,
+            Senior
+        }
+
+        internal static AgeGroup textToAgeGroup(string teamName)
+        {
+            string clubName = "taurus";
+
+            var letter = teamName.Substring(teamName.IndexOf(clubName) + clubName.Length + 1, 2);
+            switch (letter)
+            {
+                case "ja":
+                case "ma":
+                    return AgeGroup.A;
+                case "jb":
+                case "mb":
+                    return AgeGroup.B;
+                case "jc":
+                case "mc":
+                    return AgeGroup.C;
+                case "hs":
+                case "ds":
+                    return AgeGroup.Senior;
+                default:
+                    if (letter.ElementAt(0) == 'n')
+                    {
+                        return AgeGroup.Mini;
+                    } else
+                    {
+                        throw new Exception("Unknown age group: " + letter);
+
+                    }
+
+            }
+        }
+
         internal static RefereeQualification textTeamToReferee(string level)
         {
             if (level.Contains("divisie"))

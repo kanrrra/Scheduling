@@ -58,6 +58,7 @@ namespace Scheduling
             if (barString.Trim().Length < 1) return null;
 
             string[] tokens = barString.Split(',');
+            if (tokens[0].Length < 1) return null;
 
             return new BarShift(dateFromString(tokens[0], tokens[1]), dateFromString(tokens[0], tokens[2]), tokens[3], tokens[4]);
         }
@@ -134,6 +135,9 @@ namespace Scheduling
             string line;
 
             System.IO.StreamReader file = new System.IO.StreamReader(barPath);
+            //skip first line (headers)
+            file.ReadLine();
+
             while ((line = file.ReadLine()) != null)
             {
                 if (line.Trim().Length == 0) continue;

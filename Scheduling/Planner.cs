@@ -62,9 +62,11 @@ namespace Scheduling
             foreach(BarShift bs in barShifts)
             {
                 Task prevTask = null;
-                foreach(string playerName in bs.personel)
+                for(int i = 0; i < bs.personel.Length; i++)
                 {
-                    if(playerName.Length < 1)
+                    string playerName = bs.personel[i];
+
+                    if (playerName.Length < 1)
                     {
                         var shiftTask = new Task("", TaskType.BarKeeper, bs.startTime, bs.endTime, 16, Qualifications.RefereeQualification.None);
                         tasks.Add(shiftTask);
@@ -76,6 +78,28 @@ namespace Scheduling
                         {
                             prevTask.SetLinkedTask(shiftTask);
                             shiftTask.SetLinkedTask(prevTask);
+                        }
+                    } else
+                    {
+                        var volunteerPlayer = players.Find(p => p.name == playerName);
+
+                        if(volunteerPlayer != null)
+                        {
+                            bs.personel[i] = "";
+
+                            var shiftTask = new Task("", TaskType.BarKeeper, bs.startTime, bs.endTime, 16, Qualifications.RefereeQualification.None, true);
+                            tasks.Add(shiftTask);
+                            volunteerPlayer.addTask(shiftTask);
+
+                            if (prevTask == null)
+                            {
+                                prevTask = shiftTask;
+                            }
+                            else
+                            {
+                                prevTask.SetLinkedTask(shiftTask);
+                                shiftTask.SetLinkedTask(prevTask);
+                            }
                         }
                     }
                 }
@@ -145,6 +169,7 @@ namespace Scheduling
                     //p1 trade task
                     foreach (Task task1 in p1.tasks)
                     {
+                        if (task1.presetTask) continue;
                         if (!p2.isQualified(task1)) continue;
                         if (!p2.canPerformTaskOnDay(task1.startTime)) continue;
                         if (p2.hasMatchOnTime(task1.startTime, task1.endTime)) continue;
@@ -155,6 +180,7 @@ namespace Scheduling
                         //p2 trade task
                         foreach (Task task2 in p2.tasks)
                         {
+                            if (task2.presetTask) continue;
                             if (!p1.isQualified(task2)) continue;
                             if (!p1.canPerformTaskOnDay(task2.startTime)) continue;
                             if (p1.hasMatchOnTime(task2.startTime, task2.endTime)) continue;
@@ -221,7 +247,9 @@ namespace Scheduling
                 //the players task that is to be given away
                 foreach (Task task in p.tasks)
                 {
-                                        //current player cost - new player cost
+                    if (task.presetTask) continue;
+
+                    //current player cost - new player cost
                     double scoreGainByRemoval = Math.Pow(p.getCurrentCost(), 2) - Math.Pow(p.getCurrentCost() - p.getGainRemoveTask(task), 2);
 
 
@@ -236,7 +264,7 @@ namespace Scheduling
                         double scoreCost = Math.Pow(playerUnderConsideration.getCurrentCost() + playerUnderConsideration.getCostNewTask(task), 2) - Math.Pow(playerUnderConsideration.getCurrentCost(), 2);
                         double score = scoreGainByRemoval - scoreCost;
 
-                        if (score > currentLargestImprovment || (score == currentLargestImprovment && playerUnderConsideration.isMoreQualified(alternativePlayer, task) ))
+                        if (score > currentLargestImprovment)// || (score == currentLargestImprovment && playerUnderConsideration.isLessQualified(alternativePlayer, task) ))
                         {
                             //Console.Out.WriteLine("New largest improvement: " + score + " = " + scoreGainByRemoval + " - " + scoreCost);
                             //Console.Out.WriteLine("scoreCost = (" + playerUnderConsideration.getCurrentCost() + " + " + playerUnderConsideration.getCostNewTask(task) + ")^2 - " + playerUnderConsideration.getCurrentCost());
@@ -282,6 +310,8 @@ namespace Scheduling
         {
             foreach(Task t in tasks)
             {
+                if (t.person != null) continue;
+
                 double minCost = double.MaxValue;
                 Player minCostPlayer = null;
 

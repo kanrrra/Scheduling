@@ -16,13 +16,16 @@ namespace Scheduling
         private int minimumAge;
         private string note;
 
+        public bool presetTask;
+
+        public AgeGroup minimumAgeGroup;
         public Player person;
 
         public Task linkedTask = null;
 
         public string Note { get => note; private set => note = value; }
 
-        public Task(string note, TaskType type, DateTime start, DateTime end, int minimumAge, RefereeQualification refereeQualification)
+        public Task(string note, TaskType type, DateTime start, DateTime end, int minimumAge, RefereeQualification refereeQualification, bool presetTask = false)
         {
             this.Note = note;
             this.type = type;
@@ -30,6 +33,15 @@ namespace Scheduling
             this.endTime = end;
             this.minimumAge = minimumAge;
             this.refereeQualification = refereeQualification;
+            this.presetTask = presetTask;
+
+            if (type == TaskType.Referee)
+            {
+                this.minimumAgeGroup = textToAgeGroup(Note.ToLower());
+            } else
+            {
+                this.minimumAgeGroup = AgeGroup.Mini;
+            }
         }
 
         public override string ToString()

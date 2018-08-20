@@ -10,6 +10,7 @@ namespace Scheduling
         public readonly string name;
         public readonly List<string> teamNames = new List<string>();
 
+        private readonly AgeGroup ageGroup;
         private readonly RefereeQualification refereeQualification;
         private readonly DateTime dateOfBirth;
 
@@ -18,7 +19,6 @@ namespace Scheduling
 
         double SAME_TEAM_BARSHIFT_MULTIPLIER = 0.8;
         private double accruedCost;
-
 
         public Player(string name, string teamName, string refereeQualificationText, DateTime dateOfBirth, double accruedCost)
         {
@@ -30,6 +30,7 @@ namespace Scheduling
                 teamNames.Add(tn.Trim());
             }
 
+            this.ageGroup = textToAgeGroup(teamNames[0].ToLower());
 
             this.refereeQualification = textLabelToReferee(refereeQualificationText);
             this.dateOfBirth = dateOfBirth;
@@ -96,7 +97,9 @@ namespace Scheduling
 
         public bool isQualified(Task t)
         {
-            return (dateOfBirth <= t.getAgeQualification() && refereeQualification >= t.GetRefereeQualification());
+            return (dateOfBirth <= t.getAgeQualification() &&
+                (t.type != TaskType.Referee || refereeQualification >= t.GetRefereeQualification() && ageGroup >= t.minimumAgeGroup));// &&                (refereeQualification != RefereeQualification.VS2 || refereeQualification == t.GetRefereeQualification()));
+                //(refereeQualification >= t.GetRefereeQualification() && t.GetRefereeQualification() < RefereeQualification.VS2) || t.GetRefereeQualification() == refereeQualification));
         }
 
         public double getGainRemoveTask(Task t)
@@ -216,17 +219,26 @@ namespace Scheduling
                 }
             }
 
+            double waitTimeBonus = 0;
             if(minWaitTime != double.MaxValue)
             {
-                return duration + Math.Min(1.5, Math.Sqrt(minWaitTime));
+                waitTimeBonus = Math.Min(1.5, Math.Sqrt(minWaitTime));
             }
 
             //no match on this day
+            double nonMatchDayBonus = 0;
             if (teams[0].allowSchedulingOnNonMatchDay)
             {
-                return 1.0 + duration;
+                nonMatchDayBonus = 0.5;
             }
-            throw new Exception("No match on this day and team.allowSchedulingOnNonMatchDay is not set");
+
+            double timeCost = duration + waitTimeBonus + nonMatchDayBonus; ;
+
+            if (refereeQualification == RefereeQualification.VS2 && t.GetRefereeQualification() != RefereeQualification.VS2) {
+                timeCost *= 1.5;
+            }
+
+            return timeCost;
         }
 
         private bool hasTimeOverlap(DateTime startTimeA, DateTime endTimeA, DateTime startTimeB, DateTime endTimeB)
@@ -250,16 +262,19 @@ namespace Scheduling
             return name + "," + teamNames.Aggregate((a, b) => a + "." + b) + "," + refereeQualification + "," + dateOfBirth.ToShortDateString() + "," + getCurrentCost();
         }
 
+        public bool IsQualified(RefereeQualification rq)
+        {
+            return refereeQualification >= rq;
+        }
+
         internal bool isMoreQualified(Player alternativePlayer, Task task)
         {
-            if (task.type == TaskType.Referee)
-            {
-                return refereeQualification > alternativePlayer.refereeQualification;
-            }
-            else
-            {
-                return false;//return ageQualification > alternativePlayer.ageQualification;
-            }
+            return refereeQualification > alternativePlayer.refereeQualification;
+        }
+
+        internal bool isLessQualified(Player alternativePlayer, Task task)
+        {
+            return refereeQualification < alternativePlayer.refereeQualification;
         }
     }
 }

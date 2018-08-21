@@ -36,16 +36,22 @@ namespace Scheduling
                 //add referee task
                 if (m.requiresReferee())
                 {
-                    tasks.Add(new Task(m.team.name, TaskType.Referee, m.GetRefereeStartTime(), m.GetEndTime(), 0, m.team.minimumRefereeQualification));
+                    Task t = new Task(m.team.name, TaskType.Referee, m.GetRefereeStartTime(), m.GetEndTime(), 0, m.team.minimumRefereeQualification);
+                    tasks.Add(t);
+                    m.AddTask(t);
                 }
 
                 for (int i = 0; i < m.flagsRequired(); i++)
                 {
-                    tasks.Add(new Task(m.team.name, TaskType.Linesman, m.GetRefereeStartTime(), m.GetEndTime(), 16, Qualifications.RefereeQualification.None));
+                    Task t = new Task(m.team.name, TaskType.Linesman, m.GetRefereeStartTime(), m.GetEndTime(), 16, Qualifications.RefereeQualification.None);
+                    tasks.Add(t);
+                    m.AddTask(t);
                 }
                 for (int i = 0; i < m.additionalsRequired(); i++)
                 {
-                    tasks.Add(new Task(m.team.name, TaskType.ScoreKeeping, m.GetRefereeStartTime(), m.GetEndTime(), 0, Qualifications.RefereeQualification.None));
+                    Task t = new Task(m.team.name, TaskType.ScoreKeeping, m.GetRefereeStartTime(), m.GetEndTime(), 0, Qualifications.RefereeQualification.None);
+                    tasks.Add(t);
+                    m.AddTask(t);
                 }
 
             }

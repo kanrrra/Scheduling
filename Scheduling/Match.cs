@@ -12,19 +12,25 @@ namespace Scheduling
         public Team team { get; private set; }
 
         private DateTime startTime;
-        private DateTime endTime;
+        private DateTime realStartTime;
 
+        private List<Task> tasks = new List<Task>();
 
         public Match(string teamName, DateTime startTime)
         {
             this.teamName = teamName;
 
             this.startTime = startTime;
+            realStartTime = startTime;
 
             //revert timechange for late/short matches, otherwise the duration of 90 minutes results in the followup team not being able to ref/count
             if (this.startTime.Minute == 45)
                 this.startTime = this.startTime.AddMinutes(-15);
-            endTime = this.startTime.AddHours(2);
+        }
+
+        public void AddTask(Task t)
+        {
+            tasks.Add(t);
         }
 
         public void SetTeam(Team t)
@@ -51,7 +57,27 @@ namespace Scheduling
         {
             string shortTeamName = teamName.Substring(teamName.IndexOf("Taurus ") + 7);
 
-            return shortTeamName + " " + startTime;
+            return shortTeamName + " " + realStartTime;
+        }
+
+        public string ToCSV()
+        {
+            string s = startTime.ToShortDateString() + "," + startTime.ToShortTimeString() + "," + teamName + ",";
+            
+            Task referee = tasks.Find(t => t.type == TaskType.Referee);
+            if (referee != null)
+            {
+                s += referee.person.name;
+            }
+            s += ",";
+            
+            Task scoreKeeping = tasks.Find(t => t.type == TaskType.ScoreKeeping);
+            if(scoreKeeping != null)
+            {
+                s += scoreKeeping.person.name;
+            }
+
+            return s;
         }
 
         public bool requiresReferee()

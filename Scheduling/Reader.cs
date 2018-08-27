@@ -59,6 +59,10 @@ namespace Scheduling
 
             string[] tokens = barString.Split(',');
             if (tokens[0].Length < 1) return null;
+            if (barString.ToLower().Contains("extra"))
+            {
+                return null;
+            }
 
             return new BarShift(dateFromString(tokens[0], tokens[1]), dateFromString(tokens[0], tokens[2]), tokens[3], tokens[4]);
         }
@@ -187,7 +191,9 @@ namespace Scheduling
             System.IO.StreamReader file = new System.IO.StreamReader(path);
             while ((line = file.ReadLine()) != null)
             {
-                if (line.Trim().Length == 0) continue;
+                line = line.Trim();
+                if (line.Length == 0) continue;
+                if (line[0] == '#') continue;
                 var player = createPlayerFromString(line);
 
                 if (player != null) players.Add(player);

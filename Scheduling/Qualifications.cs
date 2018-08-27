@@ -35,9 +35,12 @@ namespace Scheduling
         public enum AgeGroup
         {
             Mini,
-            C,
-            B,
-            A,
+            MC,
+            JC,
+            MB,
+            JB,
+            MA,
+            JA,
             Senior
         }
 
@@ -48,15 +51,18 @@ namespace Scheduling
             var letter = teamName.Substring(teamName.IndexOf(clubName) + clubName.Length + 1, 2);
             switch (letter)
             {
-                case "ja":
                 case "ma":
-                    return AgeGroup.A;
-                case "jb":
+                    return AgeGroup.MA;
+                case "ja":
+                    return AgeGroup.JA;
                 case "mb":
-                    return AgeGroup.B;
-                case "jc":
+                    return AgeGroup.MB;
+                case "jb":
+                    return AgeGroup.JB;
                 case "mc":
-                    return AgeGroup.C;
+                    return AgeGroup.MC;
+                case "jc":
+                    return AgeGroup.JC;
                 case "hs":
                 case "ds":
                     return AgeGroup.Senior;
@@ -67,7 +73,6 @@ namespace Scheduling
                     } else
                     {
                         throw new Exception("Unknown age group: " + letter);
-
                     }
 
             }

@@ -53,9 +53,14 @@ namespace Scheduling
             return startTime.AddMinutes(team.matchDurationMinutes);
         }
 
+        private string ShortTeamName()
+        {
+            return teamName.Substring(teamName.IndexOf("Taurus ") + 7); 
+        }
+
         public override string ToString()
         {
-            string shortTeamName = teamName.Substring(teamName.IndexOf("Taurus ") + 7);
+            string shortTeamName = ShortTeamName();
 
             return shortTeamName + " " + realStartTime;
         }
@@ -67,14 +72,14 @@ namespace Scheduling
             Task referee = tasks.Find(t => t.type == TaskType.Referee);
             if (referee != null)
             {
-                s += referee.person.name;
+                s += referee.person.name + " (" + referee.person.ShortTeamName() + ")";
             }
             s += ",";
             
             Task scoreKeeping = tasks.Find(t => t.type == TaskType.ScoreKeeping);
             if(scoreKeeping != null)
             {
-                s += scoreKeeping.person.name;
+                s += scoreKeeping.person.name + " (" + scoreKeeping.person.ShortTeamName() + ")";
             }
 
             return s;

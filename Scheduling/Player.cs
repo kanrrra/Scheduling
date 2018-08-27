@@ -98,7 +98,7 @@ namespace Scheduling
         public bool isQualified(Task t)
         {
             return (dateOfBirth <= t.getAgeQualification() &&
-                (t.type != TaskType.Referee || refereeQualification >= t.GetRefereeQualification() && ageGroup >= t.minimumAgeGroup));// &&                (refereeQualification != RefereeQualification.VS2 || refereeQualification == t.GetRefereeQualification()));
+                (t.type != TaskType.Referee || refereeQualification >= t.GetRefereeQualification() && (ageGroup == AgeGroup.Senior && t.minimumAgeGroup != AgeGroup.Mini || ageGroup > t.minimumAgeGroup)));// &&                (refereeQualification != RefereeQualification.VS2 || refereeQualification == t.GetRefereeQualification()));
                 //(refereeQualification >= t.GetRefereeQualification() && t.GetRefereeQualification() < RefereeQualification.VS2) || t.GetRefereeQualification() == refereeQualification));
         }
 
@@ -222,7 +222,7 @@ namespace Scheduling
             double waitTimeBonus = 0;
             if(minWaitTime != double.MaxValue)
             {
-                waitTimeBonus = Math.Min(1.5, Math.Sqrt(minWaitTime));
+                waitTimeBonus = Math.Min(1, minWaitTime / 4);
             }
 
             //no match on this day
@@ -260,6 +260,11 @@ namespace Scheduling
         public string ToCSV()
         {
             return name + "," + teamNames.Aggregate((a, b) => a + "." + b) + "," + refereeQualification + "," + dateOfBirth.ToShortDateString() + "," + getCurrentCost();
+        }
+
+        public string ShortTeamName()
+        {
+            return teamNames[0].Substring(teamNames[0].IndexOf("Taurus ") + 7);
         }
 
         public bool IsQualified(RefereeQualification rq)

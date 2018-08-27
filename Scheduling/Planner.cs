@@ -87,7 +87,7 @@ namespace Scheduling
                         }
                     } else
                     {
-                        var volunteerPlayer = players.Find(p => p.name == playerName);
+                        var volunteerPlayer = findPlayer(playerName);
 
                         if(volunteerPlayer != null)
                         {
@@ -106,6 +106,9 @@ namespace Scheduling
                                 prevTask.SetLinkedTask(shiftTask);
                                 shiftTask.SetLinkedTask(prevTask);
                             }
+                        } else
+                        {
+                            Console.Out.WriteLine("Volunteer  not found as player: " + playerName);
                         }
                     }
                 }
@@ -113,6 +116,26 @@ namespace Scheduling
 
             tasks = tasks.OrderByDescending(t => t.GetRefereeQualification()).ThenByDescending(t => t.getAgeQualification()).ToList();
 
+        }
+
+        private Player findPlayer(string playerName)
+        {
+            var volunteerPlayer = players.Find(p => p.name == playerName);
+
+            if(volunteerPlayer == null)
+            {
+                var nameParts = playerName.Trim().Split(' ');
+                if(nameParts.Length > 1) {
+                    string lastName = nameParts[nameParts.Length - 1];
+                    lastName = lastName.First().ToString().ToUpper() + lastName.Substring(1);
+                    string firstName = nameParts.Take(nameParts.Length - 1).Aggregate("", (a, b) => a + " " + b.First().ToString().ToUpper() + b.Substring(1)).Trim();
+                    string tempName = lastName + " " + firstName;
+
+                    volunteerPlayer = players.Find(p => p.name == tempName);
+                }
+            }
+
+            return volunteerPlayer;
         }
 
         public void fillBarShifts(List<BarShift> shifts)
@@ -131,7 +154,7 @@ namespace Scheduling
                 for(int i = 0; i < relevantShifts.Count; i++)
                 {
                     var p = relevantShifts.ElementAt(i).person;
-                    bs.personel[bs.personel.Length - i - 1] = p.teamNames[0] + ": " + p.name;
+                    bs.personel[bs.personel.Length - i - 1] = p.ShortTeamName() + ": " + p.name;
                 }
             }
         }

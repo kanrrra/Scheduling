@@ -68,11 +68,7 @@ namespace Scheduling
             }
             System.IO.File.WriteAllText("players.csv", playerList);
 
-            string schedule = "Datum, tijd, team, scheidsrechter, teller";/*
-            foreach (Task t in tasks)
-            {
-                if(t.type != TaskType.BarKeeper) schedule += t.ToCSV() + "\n";
-            }*/
+            string schedule = "Datum, tijd, team, scheidsrechter, teller\n";
             foreach(Match m in matches)
             {
                 schedule += m.ToCSV() + "\n";

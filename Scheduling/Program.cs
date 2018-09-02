@@ -123,7 +123,7 @@ namespace Scheduling
             Console.Out.WriteLine("=====================================================");
             foreach (Player p in players)
             {
-                if (p.IsQualified(Qualifications.RefereeQualification.VS2))
+                if (p.IsQualifiedReferee(Qualifications.RefereeQualification.VS2))
                 {
                     printPlayerTasks(p);
                 }

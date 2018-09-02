@@ -35,15 +35,6 @@ namespace Scheduling
             return new Player(name, teamName, tokens[2].Trim(), dateFromString(tokens[3], "00:00"), currentCost);
         }
 
-        //matches
-        private Match createMatchFromString(string matchString)
-        {
-            string[] tokens = matchString.Split(new char[] { ',', ';', '\t' });
-
-            //official start time
-            return new Match(tokens[2], dateFromString(tokens[0], tokens[1]));
-        }
-
         //date busy
         private DateException createDateExceptionFromString(string dateExceptionString)
         {
@@ -120,7 +111,7 @@ namespace Scheduling
 
             if (date.Length < 1) return null;
 
-            string gym = tokens[11];
+            string gym = tokens[10];
 
             if (gym != "Kruisboog")
             {
@@ -238,7 +229,9 @@ namespace Scheduling
             string time = tokens[1];
             string homeTeam = tokens[2];
             string awayTeam = tokens[3];
-            string gym = tokens[11];
+            string referee = tokens[4];
+            string score = tokens[5];
+            string gym = tokens[10];
 
             if (date.Length < 1) return null;
             var matchDate = dateFromString(date, time);
@@ -249,28 +242,10 @@ namespace Scheduling
             if (gym == "Kruisboog")
             {
                 //official start time
-                return new Match(homeTeam, matchDate);
+                return new Match(homeTeam, matchDate, referee, score);
             } 
 
             return null;
-        }
-
-        //matches
-        public List<Match> readMatches(string path)
-        {
-            List<Match> matches = new List<Match>();
-
-            string line;
-
-            System.IO.StreamReader file = new System.IO.StreamReader(path);
-            while ((line = file.ReadLine()) != null)
-            {
-                matches.Add(createMatchFromString(line));
-            }
-
-            file.Close();
-
-            return matches;
         }
 
     }

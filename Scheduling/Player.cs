@@ -97,9 +97,14 @@ namespace Scheduling
 
         public bool isQualified(Task t)
         {
-            return (dateOfBirth <= t.getAgeQualification() &&
-                (t.type != TaskType.Referee || refereeQualification >= t.GetRefereeQualification() && (ageGroup == AgeGroup.Senior && t.minimumAgeGroup != AgeGroup.Mini || ageGroup > t.minimumAgeGroup)));// &&                (refereeQualification != RefereeQualification.VS2 || refereeQualification == t.GetRefereeQualification()));
-                //(refereeQualification >= t.GetRefereeQualification() && t.GetRefereeQualification() < RefereeQualification.VS2) || t.GetRefereeQualification() == refereeQualification));
+            return (dateOfBirth <= t.getAgeQualification() &&                                                                                                                           //age
+                (/*!teams[0].allowSchedulingOnNonMatchDay || */refereeQualification != RefereeQualification.VS2 || t.GetRefereeQualification() == RefereeQualification.VS2) &&              //VS2
+                (t.type != TaskType.Referee || IsQualifiedReferee(t.GetRefereeQualification()) && isAgeGroupQualified(t)));
+        }
+
+        private bool isAgeGroupQualified(Task t)
+        {
+            return (ageGroup == AgeGroup.Senior && t.minimumAgeGroup != AgeGroup.Mini || ageGroup > 1 + t.minimumAgeGroup);
         }
 
         public double getGainRemoveTask(Task t)
@@ -234,8 +239,14 @@ namespace Scheduling
 
             double timeCost = duration + waitTimeBonus + nonMatchDayBonus; ;
 
-            if (refereeQualification == RefereeQualification.VS2 && t.GetRefereeQualification() != RefereeQualification.VS2) {
-                timeCost *= 1.5;
+            if (refereeQualification == RefereeQualification.VS2) {
+                if (t.GetRefereeQualification() != RefereeQualification.VS2)
+                {
+                    timeCost *= 1.2;
+                } else
+                {
+                    timeCost *= 0.9;
+                }
             }
 
             return timeCost;
@@ -267,7 +278,7 @@ namespace Scheduling
             return teamNames[0].Substring(teamNames[0].IndexOf("Taurus ") + 7);
         }
 
-        public bool IsQualified(RefereeQualification rq)
+        public bool IsQualifiedReferee(RefereeQualification rq)
         {
             return refereeQualification >= rq;
         }

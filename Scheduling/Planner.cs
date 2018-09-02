@@ -27,6 +27,14 @@ namespace Scheduling
                 teams[de.teamName].addExceptionDate(de.date);
             }
 
+            foreach (Player p in players)
+            {
+                foreach (var team in p.teamNames)
+                {
+                    p.addTeam(teams[team]);
+                }
+            }
+
             //set team objects
             foreach (Match m in matches)
             {
@@ -36,9 +44,30 @@ namespace Scheduling
                 //add referee task
                 if (m.requiresReferee())
                 {
-                    Task t = new Task(m.team.name, TaskType.Referee, m.GetRefereeStartTime(), m.GetEndTime(), 0, m.team.minimumRefereeQualification);
-                    tasks.Add(t);
-                    m.AddTask(t);
+                    Task t;
+                    if (m.refName.Length > 0)
+                    {
+                        var volunteerPlayer = findPlayer(m.refName);
+
+                        if(volunteerPlayer != null)
+                        {
+                            m.refName = "";
+
+                            t = new Task(m.team.name, TaskType.Referee, m.GetRefereeStartTime(), m.GetEndTime(), 0, m.team.minimumRefereeQualification, true);
+                            m.AddTask(t);
+                            volunteerPlayer.addTask(t);
+                        } else
+                        {
+                            Console.Out.WriteLine("Volunteer ref not found as player: " + m.refName);
+                        }
+                        
+                    }
+                    else
+                    {
+                        t = new Task(m.team.name, TaskType.Referee, m.GetRefereeStartTime(), m.GetEndTime(), 0, m.team.minimumRefereeQualification);
+                        tasks.Add(t);
+                        m.AddTask(t);
+                    }
                 }
 
                 for (int i = 0; i < m.flagsRequired(); i++)
@@ -56,14 +85,6 @@ namespace Scheduling
 
             }
 
-            foreach(Player p in players)
-            {
-                foreach(var team in p.teamNames)
-                {
-                    p.addTeam(teams[team]);
-
-                }
-            }
 
             foreach(BarShift bs in barShifts)
             {

@@ -11,14 +11,19 @@ namespace Scheduling
         public readonly string teamName;
         public Team team { get; private set; }
 
+        public string refName { get; set; }
+        public string scoreName { get; set; }
+
         private DateTime startTime;
         private DateTime realStartTime;
 
         private List<Task> tasks = new List<Task>();
 
-        public Match(string teamName, DateTime startTime)
+        public Match(string teamName, DateTime startTime, string referee, string score)
         {
             this.teamName = teamName;
+            refName = referee;
+            scoreName = score;
 
             this.startTime = startTime;
             realStartTime = startTime;
@@ -73,6 +78,9 @@ namespace Scheduling
             if (referee != null)
             {
                 s += referee.person.name + " (" + referee.person.ShortTeamName() + ")";
+            } else if(refName.Length > 0)
+            {
+                s += refName + " (vol)";
             }
             s += ",";
             

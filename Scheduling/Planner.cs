@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Linq;
+using static Scheduling.Qualifications;
 
 namespace Scheduling
 {
@@ -44,6 +45,8 @@ namespace Scheduling
                 //add referee task
                 if (m.requiresReferee())
                 {
+                    AgeGroup minimumAgeGroup = textToAgeGroupRef(m.team.name.ToLower());
+                    
                     Task t;
                     if (m.refName.Length > 0)
                     {
@@ -53,7 +56,7 @@ namespace Scheduling
                         {
                             m.refName = "";
 
-                            t = new Task(m.team.name, TaskType.Referee, m.GetRefereeStartTime(), m.GetEndTime(), 0, m.team.minimumRefereeQualification, true);
+                            t = new Task(m.team.name, TaskType.Referee, m.GetRefereeStartTime(), m.GetEndTime(), 0, m.team.minimumRefereeQualification, minimumAgeGroup, true);
                             m.AddTask(t);
                             volunteerPlayer.addTask(t);
                         } else
@@ -64,7 +67,7 @@ namespace Scheduling
                     }
                     else
                     {
-                        t = new Task(m.team.name, TaskType.Referee, m.GetRefereeStartTime(), m.GetEndTime(), 0, m.team.minimumRefereeQualification);
+                        t = new Task(m.team.name, TaskType.Referee, m.GetRefereeStartTime(), m.GetEndTime(), 0, m.team.minimumRefereeQualification, minimumAgeGroup);
                         tasks.Add(t);
                         m.AddTask(t);
                     }
@@ -72,13 +75,15 @@ namespace Scheduling
 
                 for (int i = 0; i < m.flagsRequired(); i++)
                 {
-                    Task t = new Task(m.team.name, TaskType.Linesman, m.GetRefereeStartTime(), m.GetEndTime(), 16, Qualifications.RefereeQualification.None);
+                    Task t = new Task(m.team.name, TaskType.Linesman, m.GetRefereeStartTime(), m.GetEndTime(), 16, Qualifications.RefereeQualification.None, AgeGroup.Senior);
                     tasks.Add(t);
                     m.AddTask(t);
                 }
                 for (int i = 0; i < m.additionalsRequired(); i++)
                 {
-                    Task t = new Task(m.team.name, TaskType.ScoreKeeping, m.GetRefereeStartTime(), m.GetEndTime(), 0, Qualifications.RefereeQualification.None);
+                    AgeGroup minimumAgeGroup = m.team.minimumRefereeQualification == RefereeQualification.National ? AgeGroup.Senior : AgeGroup.Mini;
+
+                    Task t = new Task(m.team.name, TaskType.ScoreKeeping, m.GetRefereeStartTime(), m.GetEndTime(), 0, Qualifications.RefereeQualification.None, minimumAgeGroup);
                     tasks.Add(t);
                     m.AddTask(t);
                 }
@@ -95,7 +100,7 @@ namespace Scheduling
 
                     if (playerName.Length < 1)
                     {
-                        var shiftTask = new Task("", TaskType.BarKeeper, bs.startTime, bs.endTime, 16, Qualifications.RefereeQualification.None);
+                        var shiftTask = new Task("", TaskType.BarKeeper, bs.startTime, bs.endTime, 16, Qualifications.RefereeQualification.None, AgeGroup.Mini);
                         tasks.Add(shiftTask);
 
                         if(prevTask == null)
@@ -114,7 +119,7 @@ namespace Scheduling
                         {
                             bs.personel[i] = "";
 
-                            var shiftTask = new Task("", TaskType.BarKeeper, bs.startTime, bs.endTime, 16, Qualifications.RefereeQualification.None, true);
+                            var shiftTask = new Task("", TaskType.BarKeeper, bs.startTime, bs.endTime, 16, Qualifications.RefereeQualification.None, AgeGroup.Mini, true);
                             tasks.Add(shiftTask);
                             volunteerPlayer.addTask(shiftTask);
 

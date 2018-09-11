@@ -30,7 +30,7 @@ namespace Scheduling
                 teamNames.Add(tn.Trim());
             }
 
-            this.ageGroup = textToAgeGroup(teamNames[0].ToLower());
+            this.ageGroup = textToAgeGroupRef(teamNames[0].ToLower());
 
             this.refereeQualification = textLabelToReferee(refereeQualificationText);
             this.dateOfBirth = dateOfBirth;
@@ -99,12 +99,20 @@ namespace Scheduling
         {
             return (dateOfBirth <= t.getAgeQualification() &&                                                                                                                           //age
                 (/*!teams[0].allowSchedulingOnNonMatchDay || */refereeQualification != RefereeQualification.VS2 || t.GetRefereeQualification() == RefereeQualification.VS2) &&              //VS2
-                (t.type != TaskType.Referee || IsQualifiedReferee(t.GetRefereeQualification()) && isAgeGroupQualified(t)));
+                (t.type != TaskType.Referee || IsQualifiedReferee(t.GetRefereeQualification())) && 
+                isAgeGroupQualified(t));
         }
 
         private bool isAgeGroupQualified(Task t)
         {
-            return (ageGroup == AgeGroup.Senior && t.minimumAgeGroup != AgeGroup.Mini || ageGroup > 1 + t.minimumAgeGroup);
+            //is at least 2 age groups higher
+            //seniors dont do minis
+            if(ageGroup >= AgeGroup.Senior && t.minimumAgeGroup == AgeGroup.Mini && t.type == TaskType.Referee)
+            {
+                return false;
+            }
+
+            return (ageGroup > 1 + t.minimumAgeGroup || ageGroup == AgeGroup.Senior);
         }
 
         public double getGainRemoveTask(Task t)
@@ -239,14 +247,8 @@ namespace Scheduling
 
             double timeCost = duration + waitTimeBonus + nonMatchDayBonus; ;
 
-            if (refereeQualification == RefereeQualification.VS2) {
-                if (t.GetRefereeQualification() != RefereeQualification.VS2)
-                {
-                    timeCost *= 1.2;
-                } else
-                {
-                    timeCost *= 0.9;
-                }
+            if (ageGroup == AgeGroup.Recreative && t.type == TaskType.ScoreKeeping) {
+                timeCost *= 2;
             }
 
             return timeCost;

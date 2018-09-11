@@ -41,10 +41,11 @@ namespace Scheduling
             JB,
             MA,
             JA,
-            Senior
+            Senior,
+            Recreative
         }
 
-        internal static AgeGroup textToAgeGroup(string teamName)
+        internal static AgeGroup textToAgeGroupRef(string teamName)
         {
             string clubName = "taurus";
 
@@ -66,6 +67,10 @@ namespace Scheduling
                 case "hs":
                 case "ds":
                     return AgeGroup.Senior;
+                case "hr":
+                case "dr":
+                case "xr":
+                    return AgeGroup.Recreative;
                 default:
                     if (letter.ElementAt(0) == 'n')
                     {

@@ -25,7 +25,7 @@ namespace Scheduling
 
         public string Note { get => note; private set => note = value; }
 
-        public Task(string note, TaskType type, DateTime start, DateTime end, int minimumAge, RefereeQualification refereeQualification, bool presetTask = false)
+        public Task(string note, TaskType type, DateTime start, DateTime end, int minimumAge, RefereeQualification refereeQualification, AgeGroup minimumAgeGroup, bool presetTask = false)
         {
             this.Note = note;
             this.type = type;
@@ -35,13 +35,7 @@ namespace Scheduling
             this.refereeQualification = refereeQualification;
             this.presetTask = presetTask;
 
-            if (type == TaskType.Referee)
-            {
-                this.minimumAgeGroup = textToAgeGroup(Note.ToLower());
-            } else
-            {
-                this.minimumAgeGroup = AgeGroup.Mini;
-            }
+            this.minimumAgeGroup = minimumAgeGroup;
         }
 
         public override string ToString()

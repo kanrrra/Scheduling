@@ -46,6 +46,11 @@ namespace Scheduling
         {
             tasks.Add(t);
             t.person = this;
+
+            if(tasks.Count > getMaxTasks())
+            {
+                throw new Exception("HELP");
+            }
         }
 
         public void removeTask(Task t)
@@ -192,6 +197,24 @@ namespace Scheduling
 
         }
 
+        public int getMaxTasks()
+        {
+            if(ageGroup == AgeGroup.Recreative)
+            {
+                if (tasks.Count > 0)
+                {
+                    if (tasks[0].presetTask)
+                    {
+                        return tasks.Count;
+                    }
+                }
+
+                return 1;
+            }
+
+            return int.MaxValue;
+        }
+
         private double getTimeCost(Task t)
         {
             double duration = t.endTime.Subtract(t.startTime).TotalHours;
@@ -246,9 +269,9 @@ namespace Scheduling
             }
 
             double timeCost = duration + waitTimeBonus + nonMatchDayBonus; ;
-
+            
             if (ageGroup == AgeGroup.Recreative && t.type == TaskType.ScoreKeeping) {
-                timeCost *= 2;
+                timeCost *= 1.1;
             }
 
             return timeCost;

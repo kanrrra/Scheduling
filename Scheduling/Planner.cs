@@ -154,7 +154,7 @@ namespace Scheduling
                 if(nameParts.Length > 1) {
                     string lastName = nameParts[nameParts.Length - 1];
                     lastName = lastName.First().ToString().ToUpper() + lastName.Substring(1);
-                    string firstName = nameParts.Take(nameParts.Length - 1).Aggregate("", (a, b) => a + " " + b.First().ToString().ToUpper() + b.Substring(1)).Trim();
+                    string firstName = nameParts.Take(nameParts.Length - 1).Aggregate("", (a, b) => a + " " + b).Trim();
                     string tempName = lastName + " " + firstName;
 
                     volunteerPlayer = players.Find(p => p.name == tempName);
@@ -197,6 +197,11 @@ namespace Scheduling
                 searchTask();
                 twoOpt();
                 double newSos = reportScore("" + i + ": ");
+
+                if(newSos > sos)
+                {
+                    throw new Exception("whatcha doing fucking up my score");
+                }
 
                 if (sos == newSos)
                 {
@@ -255,13 +260,44 @@ namespace Scheduling
                             if ((Math.Pow(newScoreP1, 2) + Math.Pow(newScoreP2, 2)) < (Math.Pow(currentScoreP1, 2) + Math.Pow(currentScoreP2, 2)))
                             {
                                 //Console.Out.WriteLine("Switching " + task1 + " <> " + task2 + "\nbetween: " + p1 + "" + p2);
-                                
+
+                                double uglyTotalBefore = Math.Pow(p1.getCurrentCost(), 2)  + Math.Pow(p2.getCurrentCost(), 2);
+                                if (task1.linkedTask != null) {
+                                    uglyTotalBefore += Math.Pow(task1.linkedTask.person.getCurrentCost(), 2);
+                                }
+                                if (task2.linkedTask != null)
+                                {
+                                    uglyTotalBefore += Math.Pow(task2.linkedTask.person.getCurrentCost(), 2);
+                                }
+
                                 //switch
                                 p1.removeTask(task1);
                                 p2.removeTask(task2);
                                 
                                 p1.addTask(task2);
                                 p2.addTask(task1);
+
+                                //prev score win is not taking into account the lost score of the linked task player
+                                double uglyTotalAfter = Math.Pow(p1.getCurrentCost(), 2) + Math.Pow(p2.getCurrentCost(), 2);
+                                if (task1.linkedTask != null)
+                                {
+                                    uglyTotalAfter += Math.Pow(task1.linkedTask.person.getCurrentCost(), 2);
+                                }
+                                if (task2.linkedTask != null)
+                                {
+                                    uglyTotalAfter += Math.Pow(task2.linkedTask.person.getCurrentCost(), 2);
+                                }
+
+                                if(uglyTotalAfter > uglyTotalBefore)
+                                {
+                                    //revert
+                                    p1.removeTask(task2);
+                                    p2.removeTask(task1);
+
+                                    p1.addTask(task1);
+                                    p2.addTask(task2);
+                                }
+
 
                                 //Console.Out.WriteLine("Before: " + currentScoreP1 + "  " + currentScoreP2);
                                 //Console.Out.WriteLine("After : " + p1.getCurrentCost() + "  " + p2.getCurrentCost());
@@ -314,6 +350,10 @@ namespace Scheduling
                         if (!playerUnderConsideration.isQualified(task)) continue;
                         if (playerUnderConsideration.isBusyOnTime(task.startTime, task.endTime)) continue;
                         if (!playerUnderConsideration.canPerformTaskOnDay(task.startTime.Date)) continue;
+
+                        //cant fit an aditional task
+                        if(playerUnderConsideration.tasks.Count >= playerUnderConsideration.getMaxTasks()) continue;
+
 
                         //new cost - current cost
                         double scoreCost = Math.Pow(playerUnderConsideration.getCurrentCost() + playerUnderConsideration.getCostNewTask(task), 2) - Math.Pow(playerUnderConsideration.getCurrentCost(), 2);
@@ -372,7 +412,7 @@ namespace Scheduling
 
                 foreach (Player p in players)
                 {
-                    if (!p.hasTaskOnTime(t.startTime, t.endTime) && !p.hasMatchOnTime(t.startTime, t.endTime) && p.canPerformTaskOnDay(t.startTime) /*&& !p.hasTaskOnDate(t.startTime.Date)*/)
+                    if (!p.hasTaskOnTime(t.startTime, t.endTime) && !p.hasMatchOnTime(t.startTime, t.endTime) && p.canPerformTaskOnDay(t.startTime) && p.tasks.Count < p.getMaxTasks())
                     {
                         double currentCost = p.getCostNewTask(t);
 

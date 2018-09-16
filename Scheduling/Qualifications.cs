@@ -49,7 +49,8 @@ namespace Scheduling
         {
             string clubName = "taurus";
 
-            var letter = teamName.Substring(teamName.IndexOf(clubName) + clubName.Length + 1, 2);
+            int start = teamName.IndexOf(clubName) + clubName.Length + 1;
+            var letter = teamName.Substring(start, Math.Min(teamName.Length - start, 2));
             switch (letter)
             {
                 case "ma":
@@ -70,6 +71,7 @@ namespace Scheduling
                 case "hr":
                 case "dr":
                 case "xr":
+                case "v":
                     return AgeGroup.Recreative;
                 default:
                     if (letter.ElementAt(0) == 'n')

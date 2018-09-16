@@ -209,7 +209,7 @@ namespace Scheduling
                     }
                 }
 
-                return 1;
+                return 2;
             }
 
             return int.MaxValue;

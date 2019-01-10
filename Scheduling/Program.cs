@@ -51,29 +51,7 @@ namespace Scheduling
 
             //write bar schedule to csv
             planner.fillBarShifts(bar);
-            string barSchedule = "";
 
-            foreach(BarShift bs in bar)
-            {
-                barSchedule += bs + "\n";
-            }
-            System.IO.File.WriteAllText("bar schedule.csv", barSchedule);
-            
-            players = players.OrderBy(p => p.teamNames[0]).ThenByDescending(p => p.getCurrentCost()).ToList();
-
-            string playerList = "";
-            foreach(Player p in players)
-            {
-                playerList += p.ToCSV() + "\n";
-            }
-            System.IO.File.WriteAllText("players.csv", playerList);
-
-            string schedule = "Datum, tijd, team, scheidsrechter, teller\n";
-            foreach(Match m in matches)
-            {
-                schedule += m.ToCSV() + "\n";
-            }
-            System.IO.File.WriteAllText("schedule.csv", schedule);
 
             //Console.Out.WriteLine("=====================================================");
             Console.Out.WriteLine("highest cost: " + players.Max(p => p.getCurrentCost()));
@@ -94,7 +72,7 @@ namespace Scheduling
             Console.Out.WriteLine("=====================================================");
 
 
-            DateTime day = new DateTime();
+            DateTime day = tasks[0].startTime.Date;
             double dayCost = 0;
             foreach(Task t in tasks)
             {
@@ -130,7 +108,29 @@ namespace Scheduling
             }
 
 
+            //to file
+            string barSchedule = "";
+            foreach(BarShift bs in bar)
+            {
+                barSchedule += bs + "\n";
+            }
+            System.IO.File.WriteAllText("bar schedule.csv", barSchedule);
+            
+            players = players.OrderBy(p => p.teamNames[0]).ThenByDescending(p => p.getCurrentCost()).ToList();
 
+            string playerList = "";
+            foreach(Player p in players)
+            {
+                playerList += p.ToCSV() + "\n";
+            }
+            System.IO.File.WriteAllText("players.csv", playerList);
+
+            string schedule = "Datum, tijd, team, scheidsrechter, teller\n";
+            foreach(Match m in matches)
+            {
+                schedule += m.ToCSV() + "\n";
+            }
+            System.IO.File.WriteAllText("schedule.csv", schedule);
 
 
             Console.In.ReadLine();

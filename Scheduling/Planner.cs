@@ -83,9 +83,32 @@ namespace Scheduling
                 {
                     AgeGroup minimumAgeGroup = m.team.minimumRefereeQualification == RefereeQualification.National ? AgeGroup.Senior : AgeGroup.Mini;
 
-                    Task t = new Task(m.team.name, TaskType.ScoreKeeping, m.GetRefereeStartTime(), m.GetEndTime(), 0, Qualifications.RefereeQualification.None, minimumAgeGroup);
-                    tasks.Add(t);
-                    m.AddTask(t);
+                    Task t;
+                    if (i == 0 && m.scoreName.Length > 0)
+                    {
+                        var volunteerPlayer = findPlayer(m.scoreName);
+
+                        if (volunteerPlayer != null)
+                        {
+                            m.scoreName = "";
+
+                            t = new Task(m.team.name, TaskType.ScoreKeeping, m.GetRefereeStartTime(), m.GetEndTime(), 0, Qualifications.RefereeQualification.None, minimumAgeGroup, true);
+
+                            m.AddTask(t);
+                            volunteerPlayer.addTask(t);
+                        } else
+                        {
+                            Console.Out.WriteLine("Volunteer ref not found as player: " + m.scoreName);
+                        }
+
+                    } else
+                    {
+                        t = new Task(m.team.name, TaskType.ScoreKeeping, m.GetRefereeStartTime(), m.GetEndTime(), 0, Qualifications.RefereeQualification.None, minimumAgeGroup);
+
+                        tasks.Add(t);
+                        m.AddTask(t);
+                    }
+
                 }
 
             }
@@ -195,12 +218,18 @@ namespace Scheduling
             for (int i = 0; i < 200; i++)
             {
                 searchTask();
+
+                if (getSos() - sos > 0.001)
+                {
+                    throw new Exception("searchTask, whatcha doing fucking up my score");
+                }
+
                 twoOpt();
                 double newSos = reportScore("" + i + ": ");
 
-                if(newSos > sos)
+                if(newSos - sos > 0.001)
                 {
-                    throw new Exception("whatcha doing fucking up my score");
+                    throw new Exception("twoOpt, whatcha doing fucking up my score");
                 }
 
                 if (sos == newSos)
@@ -313,12 +342,22 @@ namespace Scheduling
             }
         }
 
+        public double getSos()
+        {
+            /*foreach(Player p in players)
+            {
+                Console.Out.WriteLine(p.getCurrentCost());
+            }*/
+
+
+            return players.Select(p => Math.Pow(p.getCurrentCost(), 2)).Sum();
+        }
 
         public double reportScore(string prefix)
         {
             double meanScore = players.Average(p => p.getCurrentCost());
             double stdDev = players.Select(p => Math.Pow(p.getCurrentCost() - meanScore, 2)).Sum();
-            double sos = players.Select(p => Math.Pow(p.getCurrentCost(), 2)).Sum();
+            double sos = getSos();
 
             Console.Out.WriteLine(prefix + "mean: " + meanScore + " stdDev: " + stdDev + " sos: " + sos);
 
@@ -343,6 +382,16 @@ namespace Scheduling
                     //current player cost - new player cost
                     double scoreGainByRemoval = Math.Pow(p.getCurrentCost(), 2) - Math.Pow(p.getCurrentCost() - p.getGainRemoveTask(task), 2);
 
+                    double barScoreLossByOtherBarkeeper = 0;
+                    if (task.type == TaskType.BarKeeper)
+                    {
+                        Player otherBarPerson = task.GetLinkedTask().person;
+                        if (otherBarPerson.teams.Intersect(p.teams).Any())
+                        {
+                            barScoreLossByOtherBarkeeper = Math.Pow(otherBarPerson.getCurrentCost() + otherBarPerson.getScoreLossByDifferentBuddy(task.GetLinkedTask()), 2) - Math.Pow(otherBarPerson.getCurrentCost(), 2);
+                        }
+                    }
+                    scoreGainByRemoval -= barScoreLossByOtherBarkeeper;
 
                     foreach (Player playerUnderConsideration in players)
                     {
@@ -357,12 +406,23 @@ namespace Scheduling
 
                         //new cost - current cost
                         double scoreCost = Math.Pow(playerUnderConsideration.getCurrentCost() + playerUnderConsideration.getCostNewTask(task), 2) - Math.Pow(playerUnderConsideration.getCurrentCost(), 2);
+
+                        if (task.type == TaskType.BarKeeper)
+                        {
+                            Player otherBarPerson = task.GetLinkedTask().person;
+                            if (otherBarPerson.teams.Intersect(playerUnderConsideration.teams).Any())
+                            {
+                                scoreCost -= barScoreLossByOtherBarkeeper;
+                            }
+                        }
+
                         double score = scoreGainByRemoval - scoreCost;
 
                         if (score > currentLargestImprovment)// || (score == currentLargestImprovment && playerUnderConsideration.isLessQualified(alternativePlayer, task) ))
                         {
                             //Console.Out.WriteLine("New largest improvement: " + score + " = " + scoreGainByRemoval + " - " + scoreCost);
                             //Console.Out.WriteLine("scoreCost = (" + playerUnderConsideration.getCurrentCost() + " + " + playerUnderConsideration.getCostNewTask(task) + ")^2 - " + playerUnderConsideration.getCurrentCost());
+                            //Console.Out.WriteLine("barScoreLossByOtherBarkeeper: " + barScoreLossByOtherBarkeeper);
 
                             currentLargestImprovment = score;
                             alternativePlayer = playerUnderConsideration;
@@ -377,20 +437,21 @@ namespace Scheduling
                     //Console.Out.WriteLine("From " + p);
                     //Console.Out.WriteLine("To " + alternativePlayer);
 
-                    //double costBeforeP1 = p.getCurrentCost();
-                    //double costBeforeP2 = alternativePlayer.getCurrentCost();
+                    double costBeforeP1 = p.getCurrentCost();
+                    double costBeforeP2 = alternativePlayer.getCurrentCost();
 
                     p.removeTask(bestMoveSuggestion);
+
                     alternativePlayer.addTask(bestMoveSuggestion);
 
-                    //double costAfterP1 = p.getCurrentCost();
-                    //double costAfterP2 = alternativePlayer.getCurrentCost();
+//                    double costAfterP1 = p.getCurrentCost();
+//                    double costAfterP2 = alternativePlayer.getCurrentCost();
 
-                    //if(Math.Pow(costAfterP1, 2) + Math.Pow(costAfterP2, 2) > Math.Pow(costBeforeP1, 2) + Math.Pow(costBeforeP2, 2))
+                    //if (Math.Pow(costAfterP1, 2) + Math.Pow(costAfterP2, 2) > Math.Pow(costBeforeP1, 2) + Math.Pow(costBeforeP2, 2))
                     //{
-                    //    Console.Out.WriteLine("Before: " + costBeforeP1 + " + " + costBeforeP2);
-                    //    Console.Out.WriteLine("After: " + costAfterP1 + " + " + costAfterP2);
-
+                    //    Console.Out.WriteLine("Before: " + costBeforeP1 + " (" + Math.Pow(costBeforeP1, 2) + ") + " + costBeforeP2 + " (" + Math.Pow(costBeforeP2, 2) + "): " + (Math.Pow(costBeforeP1, 2) + Math.Pow(costBeforeP2, 2)));
+                    //    Console.Out.WriteLine("After: " + costAfterP1 + " (" + Math.Pow(costAfterP1, 2) + ") + " + costAfterP2 + " (" + Math.Pow(costAfterP2, 2) + "): " + (Math.Pow(costAfterP1, 2) + Math.Pow(costAfterP2, 2)));
+                    //
                     //    Console.Out.WriteLine("oops");
                     //}
 

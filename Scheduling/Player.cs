@@ -17,7 +17,9 @@ namespace Scheduling
         public List<Team> teams = new List<Team>();
         public List<Task> tasks = new List<Task>();
 
-        double SAME_TEAM_BARSHIFT_MULTIPLIER = 0.8;
+        double SAME_TEAM_BARSHIFT_MULTIPLIER = 0.9;
+        double EXTRA_COST_SAME_DAY_TASK = 0.5;
+        double NON_MATCH_DAY_BONUS = 0.2;
         private double accruedCost;
 
         public Player(string name, string teamName, string refereeQualificationText, DateTime dateOfBirth, double accruedCost)
@@ -56,6 +58,7 @@ namespace Scheduling
         public void removeTask(Task t)
         {
             tasks.Remove(t);
+            t.person = null;
         }
 
         public double getCurrentCost()
@@ -102,10 +105,28 @@ namespace Scheduling
 
         public bool isQualified(Task t)
         {
-            return (dateOfBirth <= t.getAgeQualification() &&                                                                                                                           //age
-                (/*!teams[0].allowSchedulingOnNonMatchDay || */refereeQualification != RefereeQualification.VS2 || t.GetRefereeQualification() == RefereeQualification.VS2) &&              //VS2
-                (t.type != TaskType.Referee || IsQualifiedReferee(t.GetRefereeQualification())) && 
-                isAgeGroupQualified(t));
+            if(t.type == TaskType.BarKeeper && ageGroup != AgeGroup.Senior && t.endTime.TimeOfDay > new TimeSpan(16, 30, 0))                                    //no slow people during peak time
+            {
+                return false;
+            }
+
+
+            if (dateOfBirth > t.getAgeQualification())         //age
+            {
+                return false;
+            }
+
+            if (refereeQualification == RefereeQualification.VS2 && (t.type != TaskType.Referee || t.GetRefereeQualification() != RefereeQualification.VS2))        //VS2
+            {
+                return false;
+            }
+
+            if (t.type == TaskType.Referee && !IsQualifiedReferee(t.GetRefereeQualification()))
+            {
+                return false;
+            }
+
+            return isAgeGroupQualified(t);
         }
 
         private bool isAgeGroupQualified(Task t)
@@ -113,6 +134,12 @@ namespace Scheduling
             //is at least 2 age groups higher
             //seniors dont do minis
             if(ageGroup >= AgeGroup.Senior && t.minimumAgeGroup == AgeGroup.Mini && t.type == TaskType.Referee)
+            {
+                return false;
+            }
+
+            //recreatives only do bar
+            if(ageGroup == AgeGroup.Recreative && t.type != TaskType.BarKeeper)
             {
                 return false;
             }
@@ -137,7 +164,7 @@ namespace Scheduling
             if (tasksOnDate > 1)
             {
                 //if you have more than 1 task on a day, every task costs half an hour extra
-                return timeCost + tasksOnDate * 0.5;
+                return timeCost + tasksOnDate * EXTRA_COST_SAME_DAY_TASK;
             }
 
             return timeCost;
@@ -162,7 +189,7 @@ namespace Scheduling
             if(tasksOnDate > 0)
             {
                 //if you have more than 1 task on a day, every task costs half an hour extra
-                return timeCost + (tasksOnDate + 1) * 0.5;
+                return timeCost + (tasksOnDate + 1) * EXTRA_COST_SAME_DAY_TASK;
             }
 
             return timeCost;
@@ -190,11 +217,19 @@ namespace Scheduling
             if (tasksOnDate > 1)
             {
                 //if you have more than 1 task on a day, every task costs half an hour extra
-                return timeCost + 0.5;
+                return timeCost + EXTRA_COST_SAME_DAY_TASK;
             }
 
             return timeCost;
 
+        }
+
+        public double getScoreLossByDifferentBuddy(Task task)
+        {
+            double currentScoreTask = getCostCurrentTask(task);
+            double newScoreTask = currentScoreTask / SAME_TEAM_BARSHIFT_MULTIPLIER;
+
+            return newScoreTask - currentScoreTask;
         }
 
         public int getMaxTasks()
@@ -209,7 +244,7 @@ namespace Scheduling
                     }
                 }
 
-                return 2;
+                return 1;
             }
 
             return int.MaxValue;
@@ -265,7 +300,7 @@ namespace Scheduling
             double nonMatchDayBonus = 0;
             if (teams[0].allowSchedulingOnNonMatchDay)
             {
-                nonMatchDayBonus = 0.5;
+                nonMatchDayBonus = NON_MATCH_DAY_BONUS;
             }
 
             double timeCost = duration + waitTimeBonus + nonMatchDayBonus; ;

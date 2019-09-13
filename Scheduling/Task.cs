@@ -53,7 +53,7 @@ namespace Scheduling
                 name = "Referee";
             }
 
-            return name.PadRight(15) + "\t" + Note.PadRight(11) + " " + startTime + "-" + endTime.TimeOfDay;
+            return ((presetTask ? "p " : "") + name).PadRight(15) + "\t" + Note.PadRight(11) + " " + startTime + "-" + endTime.TimeOfDay;
         }
 
         public string ToCSV()

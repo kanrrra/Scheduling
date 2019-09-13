@@ -35,6 +35,8 @@ namespace Scheduling
             this.ageGroup = textToAgeGroupRef(teamNames[0].ToLower());
 
             this.refereeQualification = textLabelToReferee(refereeQualificationText);
+
+
             this.dateOfBirth = dateOfBirth;
             this.accruedCost = accruedCost;
         }
@@ -105,9 +107,19 @@ namespace Scheduling
 
         public bool isQualified(Task t)
         {
-            if(t.type == TaskType.BarKeeper && ageGroup != AgeGroup.Senior && t.endTime.TimeOfDay > new TimeSpan(16, 30, 0))                                    //no slow people during peak time
+            //if bar after 16:30 -> no old ppl
+            if (t.type == TaskType.BarKeeper && t.endTime.TimeOfDay > new TimeSpan(16, 30, 0))        //no slow people during peak time
             {
-                return false;
+                int age = t.startTime.Year - dateOfBirth.Year;
+                if(ageGroup == AgeGroup.Recreative)
+                {
+                    return false;
+                }
+
+                if(dateOfBirth.AddYears(18) > t.startTime && t.startTime.TimeOfDay < new TimeSpan(20, 0, 0))
+                {
+                    return false;
+                }
             }
 
 
@@ -116,11 +128,25 @@ namespace Scheduling
                 return false;
             }
 
-            if (refereeQualification == RefereeQualification.VS2 && (t.type != TaskType.Referee || t.GetRefereeQualification() != RefereeQualification.VS2))        //VS2
-            {
-                return false;
+            //VS2 only referee VS2
+            if (refereeQualification == RefereeQualification.VS2 || refereeQualification == RefereeQualification.VS2_A) { 
+                if(t.type != TaskType.Referee)
+                {
+                    return false;
+                }
+
+                //adult vs2 only ref vs2
+                //edited to vs2 only ref vs2 or adults
+                //if (ageGroup == AgeGroup.Senior && (t.GetRefereeQualification() < RefereeQualification.VS2_A))
+                if (ageGroup == AgeGroup.Senior 
+                    && t.GetRefereeQualification() < RefereeQualification.VS2_A 
+                    && t.minimumAgeGroup < AgeGroup.Senior)
+                {
+                    return false;
+                }
             }
 
+            //check ref qualification for ref tasks
             if (t.type == TaskType.Referee && !IsQualifiedReferee(t.GetRefereeQualification()))
             {
                 return false;
@@ -131,20 +157,35 @@ namespace Scheduling
 
         private bool isAgeGroupQualified(Task t)
         {
-            //is at least 2 age groups higher
             //seniors dont do minis
-            if(ageGroup >= AgeGroup.Senior && t.minimumAgeGroup == AgeGroup.Mini && t.type == TaskType.Referee)
+            if(t.type == TaskType.Referee && ageGroup >= AgeGroup.Senior && t.minimumAgeGroup == AgeGroup.Mini)
             {
                 return false;
             }
 
             //recreatives only do bar
-            if(ageGroup == AgeGroup.Recreative && t.type != TaskType.BarKeeper)
+            if(t.type != TaskType.BarKeeper && ageGroup == AgeGroup.Recreative)
             {
                 return false;
             }
 
-            return (ageGroup > 1 + t.minimumAgeGroup || ageGroup == AgeGroup.Senior);
+            //kids with vs2+
+            if (ageGroup < AgeGroup.Senior && refereeQualification > RefereeQualification.VS1)
+            {
+                if (t.type == TaskType.Referee)
+                {
+                    //16+ can ref 3e class and below
+                    if(dateOfBirth.AddYears(16) < t.startTime)
+                    {
+                        return t.GetRefereeQualification() <= RefereeQualification.VS1;
+                    }
+
+                    return ageGroup >= t.minimumAgeGroup;
+                }
+            }
+
+            //is at least 2 age groups higher
+            return (ageGroup == AgeGroup.Senior || ageGroup > 1 + t.minimumAgeGroup);
         }
 
         public double getGainRemoveTask(Task t)
@@ -335,7 +376,11 @@ namespace Scheduling
 
         public string ShortTeamName()
         {
-            return teamNames[0].Substring(teamNames[0].IndexOf("Taurus ") + 7);
+            string prefix = "Taurus ";
+
+            if (teamNames[0].Length <= prefix.Length) return teamNames[0];
+
+            return teamNames[0].Substring(teamNames[0].IndexOf(prefix) + prefix.Length);
         }
 
         public bool IsQualifiedReferee(RefereeQualification rq)

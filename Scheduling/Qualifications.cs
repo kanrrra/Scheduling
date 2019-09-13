@@ -13,7 +13,8 @@ namespace Scheduling
         {
             None,
             VS1,//spelregeltoets, tot 3de klasse
-            VS2,//tot 1e klasse
+            VS2_A,  //tot 1e klasse dames
+            VS2,    //tot 1e klasse
             VS3,
             VS4,
             National
@@ -25,6 +26,8 @@ namespace Scheduling
             {
                 case "vs1":
                     return RefereeQualification.VS1;
+                case "vs2_a":
+                    return RefereeQualification.VS2_A;
                 case "vs2":
                     return RefereeQualification.VS2;
                 default:
@@ -42,12 +45,19 @@ namespace Scheduling
             MA,
             JA,
             Senior,
-            Recreative
+            Recreative,
+            Unknown
         }
 
         internal static AgeGroup textToAgeGroupRef(string teamName)
         {
             string clubName = "taurus";
+
+            if(teamName.Length < clubName.Length)
+            {
+                return AgeGroup.Unknown;
+            }
+
 
             int start = teamName.IndexOf(clubName) + clubName.Length + 1;
             var letter = teamName.Substring(start, Math.Min(teamName.Length - start, 2));
@@ -85,7 +95,7 @@ namespace Scheduling
             }
         }
 
-        internal static RefereeQualification textTeamToReferee(string level)
+        internal static RefereeQualification textTeamToReferee(string level, string teamName)
         {
             if (level.Contains("divisie"))
             {
@@ -97,8 +107,16 @@ namespace Scheduling
                 case "promotieklasse":
                     return RefereeQualification.National;
                 case "1e klasse":
+                    if(teamName.Contains("DS"))
+                    {
+                        return RefereeQualification.VS2_A;
+                    }
                     return RefereeQualification.VS2;
                 case "2e klasse":
+                    if(teamName.Contains("DS"))
+                    {
+                        return RefereeQualification.VS2_A;
+                    }
                     return RefereeQualification.VS2;
                 case "topklasse"://jeugd
                     return RefereeQualification.VS2;

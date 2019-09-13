@@ -98,20 +98,36 @@ namespace Scheduling
             Console.Out.WriteLine("Daycost: " + dayCost);
 
 
-            Console.Out.WriteLine("=====================================================");
+            Console.Out.WriteLine("===========================VS2==========================");
             foreach (Player p in players)
             {
-                if (p.IsQualifiedReferee(Qualifications.RefereeQualification.VS2))
+                if (p.IsQualifiedReferee(Qualifications.RefereeQualification.VS2_A))
                 {
                     printPlayerTasks(p);
                 }
             }
 
+            Console.Out.WriteLine("=========================TOP X============================");
+            players = players.OrderByDescending(p => p.getCurrentCost()).ToList();
+
+            foreach(Player p in players.Take(players.Count / 20))
+            {
+                printPlayerTasks(p);
+            }
+
+
 
             //to file
             string barSchedule = "";
+            var prevDate = bar[0]?.startTime.Date;
             foreach(BarShift bs in bar)
             {
+                if(bs.startTime.Date != prevDate)
+                {
+                    prevDate = bs.startTime.Date;
+                    barSchedule += "\n";
+                }
+
                 barSchedule += bs + "\n";
             }
             System.IO.File.WriteAllText("bar schedule.csv", barSchedule);
@@ -139,7 +155,6 @@ namespace Scheduling
 
         static void printPlayerTasks(Player p)
         {
-
             Console.Out.WriteLine(p.name + " " + p.getCurrentCost());
             p.tasks = p.tasks.OrderBy(t => t.startTime).ToList();
 

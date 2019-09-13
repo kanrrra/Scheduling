@@ -81,6 +81,7 @@ namespace Scheduling
                 }
                 for (int i = 0; i < m.additionalsRequired(); i++)
                 {
+                    //national teams need adults
                     AgeGroup minimumAgeGroup = m.team.minimumRefereeQualification == RefereeQualification.National ? AgeGroup.Senior : AgeGroup.Mini;
 
                     Task t;
@@ -169,18 +170,17 @@ namespace Scheduling
 
         private Player findPlayer(string playerName)
         {
-            var volunteerPlayer = players.Find(p => p.name == playerName);
+            var volunteerPlayer = players.Find(p => p.name.ToLower() == playerName.ToLower());
 
             if(volunteerPlayer == null)
             {
                 var nameParts = playerName.Trim().Split(' ');
                 if(nameParts.Length > 1) {
                     string lastName = nameParts[nameParts.Length - 1];
-                    lastName = lastName.First().ToString().ToUpper() + lastName.Substring(1);
                     string firstName = nameParts.Take(nameParts.Length - 1).Aggregate("", (a, b) => a + " " + b).Trim();
                     string tempName = lastName + " " + firstName;
 
-                    volunteerPlayer = players.Find(p => p.name == tempName);
+                    volunteerPlayer = players.Find(p => p.name.ToLower() == tempName.ToLower());
                 }
             }
 
@@ -203,7 +203,8 @@ namespace Scheduling
                 for(int i = 0; i < relevantShifts.Count; i++)
                 {
                     var p = relevantShifts.ElementAt(i).person;
-                    bs.personel[bs.personel.Length - i - 1] = p.ShortTeamName() + ": " + p.name;
+                    int emptyIdx = Array.FindIndex(bs.personel, person => person.Trim().Length < 1);
+                    bs.personel[emptyIdx] = p.ShortTeamName() + ": " + p.name;
                 }
             }
         }
@@ -356,7 +357,7 @@ namespace Scheduling
         public double reportScore(string prefix)
         {
             double meanScore = players.Average(p => p.getCurrentCost());
-            double stdDev = players.Select(p => Math.Pow(p.getCurrentCost() - meanScore, 2)).Sum();
+            double stdDev = Math.Sqrt(players.Select(p => Math.Pow(p.getCurrentCost() - meanScore, 2)).Average());
             double sos = getSos();
 
             Console.Out.WriteLine(prefix + "mean: " + meanScore + " stdDev: " + stdDev + " sos: " + sos);

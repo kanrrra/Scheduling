@@ -6,9 +6,12 @@ using System.Threading.Tasks;
 
 namespace Scheduling
 {
-    class Match
+    internal class Match
     {
         public readonly string teamName;
+
+        public readonly string opponent;
+
         public Team team { get; private set; }
 
         public string refName { get; set; }
@@ -19,9 +22,11 @@ namespace Scheduling
 
         private List<Task> tasks = new List<Task>();
 
-        public Match(string teamName, DateTime startTime, string referee, string score)
+        public Match(string teamName, string opponent, DateTime startTime, string referee, string score)
         {
             this.teamName = teamName;
+            this.opponent = opponent;
+
             refName = referee;
             scoreName = score;
 
@@ -53,6 +58,11 @@ namespace Scheduling
             return startTime.AddMinutes(-(30 + team.additionalPreMatchTime));
         }
 
+        public DateTime GetProgramStartTime()
+        {
+            return startTime;
+        }
+
         public DateTime GetEndTime()
         {
             return startTime.AddMinutes(team.matchDurationMinutes);
@@ -60,7 +70,7 @@ namespace Scheduling
 
         private string ShortTeamName()
         {
-            return teamName.Substring(teamName.IndexOf("Taurus ") + 7); 
+            return teamName.Substring(teamName.IndexOf("Taurus ") + 7);
         }
 
         public override string ToString()
@@ -72,20 +82,20 @@ namespace Scheduling
 
         public string ToCSV()
         {
-            string s = startTime.ToShortDateString() + "," + startTime.ToShortTimeString() + "," + teamName + ",";
-            
+            string s = realStartTime.ToShortDateString() + "," + realStartTime.ToShortTimeString() + "," + teamName + ",";
+
             Task referee = tasks.Find(t => t.type == TaskType.Referee);
             if (referee != null)
             {
                 s += referee.person.name + " (" + referee.person.ShortTeamName() + ")";
-            } else if(refName.Length > 0)
+            } else if (refName.Length > 0)
             {
                 s += refName + " (vol)";
             }
             s += ",";
-            
+
             Task scoreKeeping = tasks.Find(t => t.type == TaskType.ScoreKeeping);
-            if(scoreKeeping != null)
+            if (scoreKeeping != null)
             {
                 s += scoreKeeping.person.name + " (" + scoreKeeping.person.ShortTeamName() + ")";
             }
@@ -106,6 +116,40 @@ namespace Scheduling
         public int additionalsRequired()
         {
             return team.additionalPeopleRequired;
+        }
+
+
+        public override bool Equals(object obj)
+        {
+            if (obj == null)
+                return false;
+
+            if (!(obj is Match))
+                return false;
+
+            var other = obj as Match;
+
+            if (teamName != other.teamName ||
+                opponent != other.opponent ||
+                startTime != other.startTime)
+                return false;
+
+            return true;
+        }
+
+        public static bool operator ==(Match x, Match y)
+        {
+            if (object.ReferenceEquals(x, null))
+            {
+                return object.ReferenceEquals(y, null);
+            }
+
+            return x.Equals(y);
+        }
+
+        public static bool operator !=(Match x, Match y)
+        {
+            return !(x == y);
         }
     }
 }

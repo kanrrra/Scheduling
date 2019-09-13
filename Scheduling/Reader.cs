@@ -30,6 +30,12 @@ namespace Scheduling
             if (name.Length < 1) return null;
 
             string teamName = tokens[1].Trim();
+            if(teamName.Length == 0)
+            {
+                teamName = "V";
+
+                Console.Out.WriteLine($"Found player {name} without team. Assigning to team v (volunteer)");
+            }
 
             double currentCost = 0;
             if(tokens.Length > 4 && tokens[4].Length > 0)
@@ -60,7 +66,25 @@ namespace Scheduling
                 return null;
             }
 
-            return new BarShift(dateFromString(tokens[0], tokens[1]), dateFromString(tokens[0], tokens[2]), tokens[3], tokens[4]);
+            DateTime startTime = dateFromString(tokens[0], tokens[1]);
+            DateTime endTime = dateFromString(tokens[0], tokens[2]);
+            string person1 = tokens[3];
+            string person2 = tokens[4];
+
+
+            if (startTime.DayOfWeek != DayOfWeek.Saturday)
+            {
+                if(person1.Trim().Length < 1)
+                {
+                    person1 = "volunteer";
+                }
+                if (person2.Trim().Length < 1)
+                {
+                    person2 = "volunteer";
+                }
+            }
+
+            return new BarShift(startTime, endTime, person1, person2);
         }
 
         public List<DateException> readExceptions(string exceptionPath)
@@ -120,8 +144,8 @@ namespace Scheduling
 
             if (gym != "Kruisboog")
             {
-                string awayTeam = tokens[3];
-                
+                string awayTeam = tokens[3].Substring(tokens[3].IndexOf("Taurus"));
+
                 return new DateException(dateFromString(date, "00:00").Date, awayTeam);
             }
 
@@ -156,7 +180,16 @@ namespace Scheduling
         private Team createTeamFromString(string teamString)
         {
             string[] tokens = teamString.Split(',');
-            return new Team(tokens[0].Trim(' '), tokens[1].Trim(' '), int.Parse(tokens[2]), int.Parse(tokens[3]), int.Parse(tokens[4]), int.Parse(tokens[5]));
+
+            string name = tokens[0].Trim(' ');
+            string level = tokens[1].Trim(' ');
+
+            int additionalPeopleRequired = int.Parse(tokens[2]);
+            int flagsRequired = int.Parse(tokens[3]);
+            int additionalPreMatchTime = int.Parse(tokens[4]);
+            int matchDurationMinutes = int.Parse(tokens[5]);
+
+            return new Team(name, level, additionalPeopleRequired, flagsRequired, additionalPreMatchTime, matchDurationMinutes);
         }
 
         public List<Team> readTeams(string path)
@@ -217,7 +250,17 @@ namespace Scheduling
             {
                 var match = createMatchFromProgramString(line);
 
-                if (match != null) matches.Add(match);
+                if (match != null)
+                {
+                    if(matches.Count > 0 &&  match == matches[matches.Count - 1])
+                    {
+                        matches.Add(new Match(match.opponent, match.teamName, match.GetProgramStartTime(), "See other match", "See other match"));
+                    } else
+                    {
+                        matches.Add(match);
+                    }
+
+                }
             }
 
             file.Close();
@@ -232,10 +275,6 @@ namespace Scheduling
 
             string date = tokens[0];
             string time = tokens[1];
-            string homeTeam = tokens[2];
-            string awayTeam = tokens[3];
-            string referee = tokens[4];
-            string score = tokens[5];
             string gym = tokens[10];
 
             if (date.Length < 1) return null;
@@ -246,8 +285,14 @@ namespace Scheduling
 
             if (gym == "Kruisboog")
             {
+                string homeTeam = tokens[2].Substring(tokens[2].IndexOf("Taurus"));
+                string awayTeam = tokens[3];
+                string referee = tokens[4];
+                string score = tokens[5];
+
+
                 //official start time
-                return new Match(homeTeam, matchDate, referee, score);
+                return new Match(homeTeam, awayTeam, matchDate, referee, score);
             } 
 
             return null;

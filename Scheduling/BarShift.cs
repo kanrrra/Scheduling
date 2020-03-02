@@ -21,7 +21,7 @@ namespace Scheduling
         
         public override string ToString()
         {
-            return startTime.ToShortDateString() + ", " + startTime.ToShortTimeString() + ", " + endTime.ToShortTimeString() + ", " + personel[0] + ", " + personel[1];
+            return startTime.ToShortDateString() + "," + startTime.ToShortTimeString() + "," + endTime.ToShortTimeString() + "," + personel[0] + "," + personel[1];
         }
     }
 }

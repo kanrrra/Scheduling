@@ -16,7 +16,7 @@ namespace Scheduling
         static void Main(string[] args)
         {
             Reader r = new Reader();
-            
+
             List<Match> matches = r.readProgram(matchPath);
             List<Player> players = r.readPlayers(playersPath);
             List<Team> teams = r.readTeams(teamsPath);
@@ -59,7 +59,7 @@ namespace Scheduling
             string teamname = "";
             foreach (Player p in players)
             {
-                if(p.teamNames[0] != teamname)
+                if (p.teamNames[0] != teamname)
                 {
                     teamname = p.teamNames[0];
                     Console.Out.WriteLine("==================");
@@ -69,14 +69,14 @@ namespace Scheduling
                 printPlayerTasks(p);
             }
 
-            Console.Out.WriteLine("=====================================================");
+            Console.Out.WriteLine("==========================ALL===========================");
 
 
             DateTime day = tasks[0].startTime.Date;
             double dayCost = 0;
-            foreach(Task t in tasks)
+            foreach (Task t in tasks)
             {
-                if(day != t.startTime.Date)
+                if (day != t.startTime.Date)
                 {
                     Console.Out.WriteLine("Daycost: " + dayCost);
                     dayCost = 0;
@@ -86,13 +86,18 @@ namespace Scheduling
                 }
 
                 var playersOnTask = players.Where(p => p.tasks.Contains(t)).ToList();
-                if(playersOnTask.Count > 0)
+                if (playersOnTask.Count < 1)
+                {
+                    Console.Out.WriteLine("!!!!!!!!!!!!!!!!!!!!!!! Noone found for task: " + t);
+                }
+                else if (playersOnTask.Count == 1)
                 {
                     Console.Out.WriteLine((playersOnTask[0].name + ": ").PadRight(25) + t + "\tcost: " + playersOnTask[0].getCostCurrentTask(t));
                     dayCost += playersOnTask[0].getCostCurrentTask(t);
-                } else
+                }
+                else
                 {
-                    Console.Out.WriteLine("!!!!!!!!!!!!!!!!!!!!!!! Noone found for task: " + t);
+                    throw new Exception("Multiple people on single task???");
                 }
             }
             Console.Out.WriteLine("Daycost: " + dayCost);
@@ -110,19 +115,39 @@ namespace Scheduling
             Console.Out.WriteLine("=========================TOP X============================");
             players = players.OrderByDescending(p => p.getCurrentCost()).ToList();
 
-            foreach(Player p in players.Take(players.Count / 20))
+            foreach (Player p in players.Take(players.Count / 20))
             {
                 printPlayerTasks(p);
             }
 
+            Console.Out.WriteLine("=========================BOT X============================");
+            players = players.OrderBy(p => p.getCurrentCost()).ToList();
+
+            foreach (Player p in players.Take(players.Count / 20))
+            {
+                printPlayerTasks(p);
+            }
+
+            Console.Out.WriteLine("=========================NEW============================");
+            foreach (Task t in tasks)
+            {
+                if(!t.presetTask)
+                {
+                    Console.Out.WriteLine($"{$"{t.person.name} ({t.person.ShortTeamName()})".PadRight(25)} {t}");
+                }
+            }
+
+
+
 
 
             //to file
-            string barSchedule = "";
+            string barSchedule = "Datum,Begin,Eind,Persoon 1,Persoon 2\n";
             var prevDate = bar[0]?.startTime.Date;
-            foreach(BarShift bs in bar)
+            foreach (BarShift bs in bar)
             {
-                if(bs.startTime.Date != prevDate)
+                //new day
+                if (bs.startTime.Date != prevDate)
                 {
                     prevDate = bs.startTime.Date;
                     barSchedule += "\n";
@@ -131,18 +156,18 @@ namespace Scheduling
                 barSchedule += bs + "\n";
             }
             System.IO.File.WriteAllText("bar schedule.csv", barSchedule);
-            
+
             players = players.OrderBy(p => p.teamNames[0]).ThenByDescending(p => p.getCurrentCost()).ToList();
 
             string playerList = "";
-            foreach(Player p in players)
+            foreach (Player p in players)
             {
                 playerList += p.ToCSV() + "\n";
             }
             System.IO.File.WriteAllText("players.csv", playerList);
 
-            string schedule = "Datum, tijd, team, scheidsrechter, teller\n";
-            foreach(Match m in matches)
+            string schedule = "Datum, tijd, team thuis, team uit, scheidsrechter, teller, zaal\n";
+            foreach (Match m in matches)
             {
                 schedule += m.ToCSV() + "\n";
             }

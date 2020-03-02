@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
+using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 
 namespace Scheduling
@@ -20,9 +21,10 @@ namespace Scheduling
         private DateTime startTime;
         private DateTime realStartTime;
 
+        private bool generateTasks;
         private List<Task> tasks = new List<Task>();
 
-        public Match(string teamName, string opponent, DateTime startTime, string referee, string score)
+        public Match(string teamName, string opponent, DateTime startTime, string referee, string score, bool generateTasks = true)
         {
             this.teamName = teamName;
             this.opponent = opponent;
@@ -30,12 +32,22 @@ namespace Scheduling
             refName = referee;
             scoreName = score;
 
+            refName = Regex.Replace(refName, @"\(.*?\)", "").Trim();
+            scoreName = Regex.Replace(scoreName, @"\(.*?\)", "").Trim();
+
             this.startTime = startTime;
             realStartTime = startTime;
+
+            this.generateTasks = generateTasks;
 
             //revert timechange for late/short matches, otherwise the duration of 90 minutes results in the followup team not being able to ref/count
             if (this.startTime.Minute == 45)
                 this.startTime = this.startTime.AddMinutes(-15);
+        }
+
+        public bool GenerateTasks()
+        {
+            return generateTasks;
         }
 
         public void AddTask(Task t)
@@ -50,7 +62,7 @@ namespace Scheduling
 
         public DateTime GetRefereeStartTime()
         {
-            return startTime.AddMinutes(-30);
+            return startTime.AddMinutes(-15);
         }
 
         public DateTime GetPlayerStartTime()
@@ -82,7 +94,7 @@ namespace Scheduling
 
         public string ToCSV()
         {
-            string s = realStartTime.ToShortDateString() + "," + realStartTime.ToShortTimeString() + "," + teamName + ",";
+            string s = realStartTime.ToShortDateString() + "," + realStartTime.ToShortTimeString() + "," + teamName + "," + opponent + ",";
 
             Task referee = tasks.Find(t => t.type == TaskType.Referee);
             if (referee != null)
@@ -90,7 +102,7 @@ namespace Scheduling
                 s += referee.person.name + " (" + referee.person.ShortTeamName() + ")";
             } else if (refName.Length > 0)
             {
-                s += refName + " (vol)";
+                s += refName;// + " (vol)";
             }
             s += ",";
 
@@ -99,6 +111,7 @@ namespace Scheduling
             {
                 s += scoreKeeping.person.name + " (" + scoreKeeping.person.ShortTeamName() + ")";
             }
+            s += ",Kruisboog";
 
             return s;
         }

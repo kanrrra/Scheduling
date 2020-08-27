@@ -40,14 +40,6 @@ namespace Scheduling
             return new Player(name, teamName, tokens[2].Trim(), dateFromString(tokens[3], "00:00"), currentCost);
         }
 
-        //date busy
-        private DateException createDateExceptionFromString(string dateExceptionString)
-        {
-            string[] tokens = dateExceptionString.Split(',');
-
-            return new DateException(dateFromString(tokens[0], "00:00").Date, tokens[1].Trim());
-        }
-
         //bar
         private BarShift createBarshiftFromString(string barString)
         {
@@ -61,25 +53,6 @@ namespace Scheduling
             }
 
             return new BarShift(dateFromString(tokens[0], tokens[1]), dateFromString(tokens[0], tokens[2]), tokens[3], tokens[4]);
-        }
-
-        public List<DateException> readExceptions(string exceptionPath)
-        {
-            List<DateException> dateExceptions = new List<DateException>();
-
-            string line;
-
-            System.IO.StreamReader file = new System.IO.StreamReader(exceptionPath);
-            while ((line = file.ReadLine()) != null)
-            {
-                if (line.Trim().Length == 0) continue;
-
-                dateExceptions.Add(createDateExceptionFromString(line));
-            }
-
-            file.Close();
-
-            return dateExceptions;
         }
 
 
@@ -215,6 +188,8 @@ namespace Scheduling
 
             while ((line = file.ReadLine()) != null)
             {
+                if (line.Length < 1) continue;
+
                 var match = createMatchFromProgramString(line);
 
                 if (match != null) matches.Add(match);

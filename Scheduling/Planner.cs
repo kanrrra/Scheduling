@@ -203,7 +203,7 @@ namespace Scheduling
                 for(int i = 0; i < relevantShifts.Count; i++)
                 {
                     var p = relevantShifts.ElementAt(i).person;
-                    bs.personel[bs.personel.Length - i - 1] = p.ShortTeamName() + ": " + p.name;
+                    bs.personel[bs.personel.Length - i - 1] = p.name + " (" + p.ShortTeamName() + ")";
                 }
             }
         }

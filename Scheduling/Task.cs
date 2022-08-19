@@ -11,6 +11,7 @@ namespace Scheduling
     {
         public TaskType type;
         public DateTime startTime;
+        public DateTime schedulingStartTime;
         public DateTime endTime;
         private RefereeQualification refereeQualification;
         private int minimumAge;
@@ -34,6 +35,12 @@ namespace Scheduling
             this.minimumAge = minimumAge;
             this.refereeQualification = refereeQualification;
             this.presetTask = presetTask;
+            this.schedulingStartTime = start;
+
+            if(type == TaskType.BarKeeper)
+            {
+                this.schedulingStartTime = this.schedulingStartTime.AddMinutes(-15);
+            }
 
             this.minimumAgeGroup = minimumAgeGroup;
         }

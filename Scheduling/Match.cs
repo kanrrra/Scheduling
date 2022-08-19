@@ -13,6 +13,8 @@ namespace Scheduling
 
         public readonly string opponent;
 
+        public readonly string field;
+
         public Team team { get; private set; }
 
         public string refName { get; set; }
@@ -24,10 +26,11 @@ namespace Scheduling
         private bool generateTasks;
         private List<Task> tasks = new List<Task>();
 
-        public Match(string teamName, string opponent, DateTime startTime, string referee, string score, bool generateTasks = true)
+        public Match(string teamName, string opponent, DateTime startTime, string referee, string score, bool generateTasks, string field)
         {
             this.teamName = teamName;
             this.opponent = opponent;
+            this.field = field;
 
             refName = referee;
             scoreName = score;
@@ -99,7 +102,13 @@ namespace Scheduling
             Task referee = tasks.Find(t => t.type == TaskType.Referee);
             if (referee != null)
             {
-                s += referee.person.name + " (" + referee.person.ShortTeamName() + ")";
+                if (referee.person != null)
+                {
+                    s += referee.person.name + " (" + referee.person.ShortTeamName() + ")";
+                } else
+                {
+                    s += "TODO!";
+                }
             } else if (refName.Length > 0)
             {
                 s += refName;// + " (vol)";
@@ -109,9 +118,15 @@ namespace Scheduling
             Task scoreKeeping = tasks.Find(t => t.type == TaskType.ScoreKeeping);
             if (scoreKeeping != null)
             {
-                s += scoreKeeping.person.name + " (" + scoreKeeping.person.ShortTeamName() + ")";
+                if (scoreKeeping.person != null)
+                {
+                    s += scoreKeeping.person.name + " (" + scoreKeeping.person.ShortTeamName() + ")";
+                } else
+                {
+                    s += "TODO!";
+                }
             }
-            s += ",Kruisboog";
+            s += $", {field}, Kruisboog";
 
             return s;
         }

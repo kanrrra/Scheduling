@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
+using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 
 namespace Scheduling
@@ -12,7 +13,8 @@ namespace Scheduling
         public enum RefereeQualification
         {
             None,
-            VS1,//spelregeltoets, tot 3de klasse
+            VS1,    //spelregeltoets, tot 3de klasse
+            VS1_TRIAL,
             VS2_A,  //tot 1e klasse dames
             VS2,    //tot 1e klasse
             VS3,
@@ -24,6 +26,8 @@ namespace Scheduling
         {
             switch (text.ToLower())
             {
+                case "vs1_trial":
+                    return RefereeQualification.VS1_TRIAL;
                 case "vs1":
                     return RefereeQualification.VS1;
                 case "vs2_a":
@@ -35,7 +39,7 @@ namespace Scheduling
             }
         }
 
-        public enum AgeGroup
+        public enum AgeGroup:long
         {
             Mini,
             MC,
@@ -53,14 +57,17 @@ namespace Scheduling
         {
             string clubName = "taurus";
 
+            RegexOptions options = RegexOptions.None;
+            Regex regex = new Regex("[ ]{2,}", options);
+            teamName = regex.Replace(teamName, " ");
+
             if(teamName.Length < clubName.Length)
             {
                 return AgeGroup.Unknown;
             }
-
-
-            int start = teamName.IndexOf(clubName) + clubName.Length + 1;
-            var letter = teamName.Substring(start, Math.Min(teamName.Length - start, 2));
+            
+            var tokens = teamName.Split(' ');
+            var letter = tokens[tokens.Length - 2];
             switch (letter)
             {
                 case "ma":
@@ -97,7 +104,7 @@ namespace Scheduling
 
         internal static RefereeQualification textTeamToReferee(string level, string teamName)
         {
-            if (level.Contains("divisie"))
+            if (level.ToLower().Contains("divisie"))
             {
                 return RefereeQualification.National;
             }
@@ -119,7 +126,7 @@ namespace Scheduling
                     }
                     return RefereeQualification.VS2;
                 case "topklasse"://jeugd
-                    return RefereeQualification.VS2;
+                    return RefereeQualification.VS2_A;
                 case "3e klasse":
                     return RefereeQualification.VS1;
                 case "4e klasse":

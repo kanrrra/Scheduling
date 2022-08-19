@@ -22,8 +22,9 @@ namespace Scheduling
         double EXTRA_COST_SAME_DAY_TASK = 0.5;
         double NON_MATCH_DAY_BONUS = 0.2;
         private double accruedCost;
+        private bool exemption;
 
-        public Player(string name, string teamName, string refereeQualificationText, DateTime dateOfBirth, double accruedCost)
+        public Player(string name, string teamName, string refereeQualificationText, DateTime dateOfBirth, double accruedCost, bool exemption)
         {
             this.name = name;
 
@@ -40,6 +41,7 @@ namespace Scheduling
 
             this.dateOfBirth = dateOfBirth;
             this.accruedCost = accruedCost;
+            this.exemption = exemption;
         }
 
         public void addTeam(Team t)
@@ -78,12 +80,12 @@ namespace Scheduling
 
         public bool hasTaskOnTime(DateTime startTime, DateTime endTime)
         {
-            return tasks.Any(t => hasTimeOverlap(t.startTime, t.endTime, startTime, endTime));
+            return tasks.Any(t => hasTimeOverlap(t.schedulingStartTime, t.endTime, startTime, endTime));
         }
 
         public bool hasOtherTaskOnTime(Task excludedTask, DateTime startTime, DateTime endTime)
         {
-            return tasks.Any(t => t != excludedTask && hasTimeOverlap(t.startTime, t.endTime, startTime, endTime));
+            return tasks.Any(t => t != excludedTask && hasTimeOverlap(t.schedulingStartTime, t.endTime, startTime, endTime));
         }
 
         public bool hasMatchOnTime(DateTime startTime, DateTime endTime)
@@ -108,6 +110,11 @@ namespace Scheduling
 
         public bool isQualified(Task t)
         {
+            // If you have an exemption you dont have to do anything, cba to make another check
+            if (exemption) {
+                return false;
+            }
+
             //youth needs to be in bed by 9......
             if (t.type == TaskType.BarKeeper
                 && ageGroup < AgeGroup.Senior
@@ -135,7 +142,7 @@ namespace Scheduling
             }
 
             //VS2 only referee VS2
-            if (refereeQualification == RefereeQualification.VS2 || refereeQualification == RefereeQualification.VS2_A)
+            if (refereeQualification == RefereeQualification.VS2)
             {
                 if (t.type != TaskType.Referee)
                 {
@@ -144,14 +151,24 @@ namespace Scheduling
 
                 //adult vs2 only ref vs2
                 //edited to vs2 only ref vs2 or adults
-                //if (ageGroup == AgeGroup.Senior && (t.GetRefereeQualification() < RefereeQualification.VS2_A))
-                if (ageGroup == AgeGroup.Senior
-                    && t.GetRefereeQualification() < RefereeQualification.VS2_A
-                    && t.minimumAgeGroup < AgeGroup.Senior)
+                if (ageGroup == AgeGroup.Senior && (t.GetRefereeQualification() < RefereeQualification.VS2_A))
+                //if (ageGroup == AgeGroup.Senior
+                //    && t.GetRefereeQualification() < RefereeQualification.VS2_A
+                //    && t.minimumAgeGroup < AgeGroup.Senior)
                 {
                     return false;
                 }
             }
+
+            if (refereeQualification == RefereeQualification.VS2_A)
+            {
+                if (t.type != TaskType.Referee)
+                {
+                    return false;
+                }
+            }
+
+
 
             //check ref qualification for ref tasks
             if (t.type == TaskType.Referee && !IsQualifiedReferee(t.GetRefereeQualification()))
@@ -165,7 +182,7 @@ namespace Scheduling
         private bool isAgeGroupQualified(Task t)
         {
             //seniors dont do minis
-            if (t.type == TaskType.Referee && ageGroup >= AgeGroup.Senior && t.minimumAgeGroup == AgeGroup.Mini)
+            if (t.type == TaskType.Referee && ageGroup >= AgeGroup.Senior && t.minimumAgeGroup <= AgeGroup.JC)
             {
                 return false;
             }
@@ -177,7 +194,7 @@ namespace Scheduling
             }
 
             //kids with vs2+
-            if (ageGroup < AgeGroup.Senior && refereeQualification > RefereeQualification.VS1)
+            if (ageGroup < AgeGroup.Senior && refereeQualification > RefereeQualification.VS1_TRIAL)
             {
                 if (t.type == TaskType.Referee)
                 {
@@ -187,12 +204,11 @@ namespace Scheduling
                         return t.GetRefereeQualification() <= RefereeQualification.VS1;
                     }
 
-                    return ageGroup >= t.minimumAgeGroup;
+                    return ageGroup + 1 >= t.minimumAgeGroup;
                 }
             }
-
-            //is at least 2 age groups higher
-            return (ageGroup == AgeGroup.Senior || ageGroup > 1 + t.minimumAgeGroup);
+            
+            return (ageGroup == AgeGroup.Senior || ageGroup >= t.minimumAgeGroup);
         }
 
         public double getGainRemoveTask(Task t)
@@ -305,6 +321,29 @@ namespace Scheduling
             return int.MaxValue;
         }
 
+        public void checkOverlappingTasks()
+        {
+            foreach (Task t in tasks)
+            {
+                foreach (Team team in teams)
+                {
+                    Match m = team.matches.Find(match => match.GetPlayerStartTime().Date == t.startTime.Date);
+                    if (m != null)
+                    {
+                        
+                        if (t.schedulingStartTime < m.GetEndTime() && t.endTime > m.GetPlayerStartTime())
+                        {
+                            //if (t.type != TaskType.Referee && t.type != TaskType.ScoreKeeping || (m.GetProgramStartTime() - t.endTime).TotalMinutes <= 0)
+                            //{
+                            Console.Out.WriteLine($"Warning -> Previous task ({t}) during match {m} for {name}");
+                            //}
+                            
+                        }
+                    }
+                }
+            }
+        }
+
         private double getTimeCost(Task t)
         {
             double duration = t.endTime.Subtract(t.startTime).TotalHours;
@@ -317,7 +356,7 @@ namespace Scheduling
                 {
                     double waitTime = double.MaxValue;
 
-                    //after
+                    // task after match
                     if (t.startTime >= m.GetEndTime())
                     {
                         waitTime = t.startTime.Subtract(m.GetEndTime()).TotalHours;
@@ -327,7 +366,7 @@ namespace Scheduling
                         //before
                         waitTime = m.GetPlayerStartTime().Subtract(t.endTime).TotalHours;
                     }
-                    else if ((t.type == TaskType.Referee || t.type == TaskType.ScoreKeeping) && (m.GetProgramStartTime() - t.endTime).TotalMinutes > 0)
+                    else if ((t.type == TaskType.Referee || t.type == TaskType.ScoreKeeping) && (t.startTime >= m.GetEndTime() || t.endTime <= m.GetProgramStartTime()))
                     {
                         //play your own match and then ref/count on the same field is ok
                         waitTime = 0;
@@ -336,22 +375,26 @@ namespace Scheduling
                         //dont care about the past
                         if(m.GetProgramStartTime() > DateTime.Now)
                         {
-                            throw new Exception("Task during match!");
+                            //Console.Out.WriteLine($"Warning -> Previous task ({t}) during match {m} for {name}");
+                            if(!t.presetTask)
+                            {
+                                throw new Exception($"Task during match for {name} on {m.GetProgramStartTime()}");
+                            }
                         }
-
-                        //Console.Out.WriteLine($"Warning -> Previous task ({t}) during match {m}");
+                        
                         waitTime = 0;
                         //during
                     }
 
-                    if (waitTime != double.MaxValue)
-                    {
-                        if (waitTime < minWaitTime)
-                        {
-                            minWaitTime = waitTime;
-                        }
-                        break;
-                    }
+                    minWaitTime = Math.Min(minWaitTime, waitTime);
+                    //if (waitTime != double.MaxValue)
+                    //{
+                    //    if (waitTime < minWaitTime)
+                    //    {
+                    //        minWaitTime = waitTime;
+                    //    }
+                    //    //break;
+                    //}
 
                 }
             }
@@ -359,7 +402,7 @@ namespace Scheduling
             double waitTimeBonus = 0;
             if (minWaitTime != double.MaxValue)
             {
-                waitTimeBonus = Math.Min(1, minWaitTime / 4);
+                waitTimeBonus = minWaitTime / 10;//Math.Min(1, minWaitTime / 4);
             }
 
             //no match on this day
@@ -369,14 +412,7 @@ namespace Scheduling
                 nonMatchDayBonus = NON_MATCH_DAY_BONUS;
             }
 
-            double timeCost = duration + waitTimeBonus + nonMatchDayBonus; ;
-
-            if (ageGroup == AgeGroup.Recreative && t.type == TaskType.ScoreKeeping)
-            {
-                timeCost *= 1.1;
-            }
-
-            return timeCost;
+            return duration + waitTimeBonus + nonMatchDayBonus;
         }
 
         private bool hasTimeOverlap(DateTime startTimeA, DateTime endTimeA, DateTime startTimeB, DateTime endTimeB)

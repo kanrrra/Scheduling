@@ -1,21 +1,52 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Text;
 using System.Text.RegularExpressions;
 
 namespace Scheduling
 {
     internal class Reader
     {
+        static Regex csvSplit = new Regex("(?:^|,)(\"(?:[^\"]+|\"\")*\"|[^,]*)", RegexOptions.Compiled);
+
+        string previousFirstCell;
+
+        public static string[] SplitCsv(string line)
+    {
+        List<string> result = new List<string>();
+        StringBuilder currentStr = new StringBuilder("");
+        bool inQuotes = false;
+        for (int i = 0; i < line.Length; i++) // For each character
+        {
+            if (line[i] == '\"') // Quotes are closing or opening
+                inQuotes = !inQuotes;
+            else if (line[i] == ',') // Comma
+            {
+                if (!inQuotes) // If not in quotes, end of current string, add it to result
+                {
+                    result.Add(currentStr.ToString());
+                    currentStr.Clear();
+                }
+                else
+                    currentStr.Append(line[i]); // If in quotes, just add it 
+            }
+            else // Add any other character to current string
+                currentStr.Append(line[i]); 
+        }
+        result.Add(currentStr.ToString());
+        return result.ToArray(); // Return array of all strings
+    }
 
         Dictionary<string, int> matchFileIndices = new Dictionary<string, int>();
 
         string dateIndex = "datum";
         string timeIndex = "tijd";
-        string homeIndex = "team thuis";
-        string awayIndex = "team uit";
+        string homeHeaderName = "team thuis";
+        string awayHeaderName = "team uit";
         string gymIndex = "zaal";
         string refereeIndex = "scheidsrechter";
         string scoreIndex = "teller";
+        string fieldIndex = "veld";
 
         public Reader()
         {
@@ -27,7 +58,7 @@ namespace Scheduling
             string[] dateTokens = date.Split(new char[] { '-', '/' });
             string[] timeTokens = time.Split(new char[] { ':', '.' });
 
-            DateTime dateTime = new DateTime(int.Parse(dateTokens[2]), int.Parse(dateTokens[1]), int.Parse(dateTokens[0]),
+            DateTime dateTime = new DateTime(int.Parse(dateTokens[0]), int.Parse(dateTokens[1]), int.Parse(dateTokens[2]),
                 int.Parse(timeTokens[0]), int.Parse(timeTokens[1]), 0);
 
             return dateTime;
@@ -55,7 +86,13 @@ namespace Scheduling
                 currentCost = double.Parse(tokens[4]);
             }
 
-            return new Player(name, teamName, tokens[2].Trim(), dateFromString(tokens[3], "00:00"), currentCost);
+            bool exemption = false;
+            if (tokens.Length > 5 && tokens[5].Length > 0)
+            {
+                exemption = true;
+            }
+
+            return new Player(name, teamName, tokens[2].Trim(), dateFromString(tokens[3], "00:00"), currentCost, exemption);
         }
 
         //bar
@@ -64,10 +101,19 @@ namespace Scheduling
             if (barString.Trim().Length < 1) return null;
 
             string[] tokens = barString.Split(',');
-            if (tokens[0].Length < 1) return null;
+            if (tokens[1].Length < 1) return null;
             if (barString.ToLower().Contains("extra"))
             {
                 return null;
+            }
+
+            // if there is no date, use the previous date
+            if (tokens[0].Length < 1)
+            {
+                tokens[0] = previousFirstCell;
+            } else
+            {
+                previousFirstCell = tokens[0];
             }
 
             DateTime startTime = dateFromString(tokens[0], tokens[1]);
@@ -121,19 +167,37 @@ namespace Scheduling
         //date busy
         private DateException createDateExceptionFromProgramString(string dateExceptionString)
         {
-            string[] tokens = dateExceptionString.Split(',');
+            string[] tokens = SplitCsv(dateExceptionString);
 
-            string date = tokens[0];
+            string date = tokens[matchFileIndices[dateIndex]];
 
             if (date.Length < 1) return null;
 
-            string gym = tokens[10];
+            string gym = tokens[matchFileIndices[gymIndex]];
 
             if (gym != "Kruisboog")
             {
-                string awayTeam = tokens[3].Substring(tokens[3].IndexOf("Taurus"));
+                int awayIndex = matchFileIndices[awayHeaderName];
 
-                return new DateException(dateFromString(date, "00:00").Date, awayTeam);
+                string taurusTeam = "";
+                int taurusIndex = tokens[awayIndex].IndexOf("Taurus");
+                if (taurusIndex < 0)
+                {
+                    int homeIndex = matchFileIndices[homeHeaderName];
+                    taurusIndex = tokens[homeIndex].IndexOf("Taurus");
+                    taurusTeam = tokens[homeIndex].Substring(taurusIndex);
+                } else
+                {
+                    taurusTeam = tokens[awayIndex].Substring(taurusIndex);
+                }
+
+                if (taurusTeam == "")
+                {
+                    return null;
+                }
+                
+
+                return new DateException(dateFromString(date, "00:00").Date, taurusTeam);
             }
 
             return null;
@@ -203,10 +267,16 @@ namespace Scheduling
             List<Player> players = new List<Player>();
 
             string line;
+            bool header = true;
 
             System.IO.StreamReader file = new System.IO.StreamReader(path);
             while ((line = file.ReadLine()) != null)
             {
+                if (header)
+                {
+                    header = false;
+                    continue;
+                }
                 line = line.Trim();
                 if (line.Length == 0) continue;
                 if (line[0] == '#') continue;
@@ -249,7 +319,7 @@ namespace Scheduling
                 {
                     if(matches.Count > 0 &&  match == matches[matches.Count - 1])
                     {
-                        matches.Add(new Match(match.opponent, match.teamName, match.GetProgramStartTime(), "", "", false));
+                        matches.Add(new Match(match.opponent, match.teamName, match.GetProgramStartTime(), "", "", false, match.field));
                     } else
                     {
                         matches.Add(match);
@@ -277,7 +347,7 @@ namespace Scheduling
         //matches
         private Match createMatchFromProgramString(string matchString)
         {
-            string[] tokens = matchString.Split(new char[] { ',', ';', '\t' });
+            string[] tokens = SplitCsv(matchString);
 
             string date = tokens[matchFileIndices[dateIndex]];
             string time = tokens[matchFileIndices[timeIndex]];
@@ -293,22 +363,15 @@ namespace Scheduling
             }
 
 
-            string homeTeam = tokens[matchFileIndices[homeIndex]].Substring(tokens[matchFileIndices[homeIndex]].IndexOf("Taurus"));
-            string awayTeam = tokens[matchFileIndices[awayIndex]];
+            string homeTeam = tokens[matchFileIndices[homeHeaderName]].Substring(tokens[matchFileIndices[homeHeaderName]].IndexOf("Taurus"));
+            string awayTeam = tokens[matchFileIndices[awayHeaderName]];
             string referee = tokens[matchFileIndices[refereeIndex]];
             string score = tokens[matchFileIndices[scoreIndex]];
 
-            if (matchDate.DayOfWeek != DayOfWeek.Saturday)
-            {
-                if(referee.Trim().Length == 0 && score.Trim().Length == 0)
-                    return null;
-
-                if (referee.Trim().Length == 0) referee = "Todo";
-                if (score.Trim().Length == 0) referee = "Zelf";
-            }
-
+            string field = tokens[matchFileIndices[fieldIndex]];
+            
             //official start time
-            return new Match(homeTeam, awayTeam, matchDate, referee, score);
+            return new Match(homeTeam, awayTeam, matchDate, referee, score, true, field);
         }
 
     }

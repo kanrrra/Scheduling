@@ -56,6 +56,7 @@ namespace Scheduling
             //Console.Out.WriteLine("=====================================================");
             Console.Out.WriteLine("highest cost: " + players.Max(p => p.getCurrentCost()));
 
+            Dictionary<string, int[]> summary = new Dictionary<string, int[]>();
             string teamname = "";
             foreach (Player p in players)
             {
@@ -66,8 +67,26 @@ namespace Scheduling
                     Console.Out.WriteLine(teamname);
                 }
 
+                if (!summary.ContainsKey(teamname))
+                {
+                    summary[teamname] = new int[] { 0, 0, 0 };
+                }
+
+                summary[teamname][0]++;
+                summary[teamname][1] += p.tasks.Count;
+                summary[teamname][2] += p.IsQualifiedReferee(Qualifications.RefereeQualification.VS1) ? 1 : 0;
+
+
                 printPlayerTasks(p);
             }
+
+            Console.Out.WriteLine("========================================================");
+
+            foreach (var item in summary) {
+                Console.Out.WriteLine($"Team {item.Key} has {item.Value[1] / (double)item.Value[0]:F1} tasks/player and {item.Value[2] / (double)item.Value[0]:F1} refs/player ({item.Value[0]} players, {item.Value[1]} tasks, {item.Value[2]} refs)");
+            }
+
+
 
             Console.Out.WriteLine("==========================ALL===========================");
 
@@ -112,6 +131,15 @@ namespace Scheduling
                 }
             }
 
+            Console.Out.WriteLine("===========================VS1==========================");
+            foreach (Player p in players)
+            {
+                if (p.IsQualifiedReferee(Qualifications.RefereeQualification.VS1) && !p.IsQualifiedReferee(Qualifications.RefereeQualification.VS2_A))
+                {
+                    printPlayerTasks(p);
+                }
+            }
+
             Console.Out.WriteLine("=========================TOP X============================");
             players = players.OrderByDescending(p => p.getCurrentCost()).ToList();
 
@@ -123,7 +151,7 @@ namespace Scheduling
             Console.Out.WriteLine("=========================BOT X============================");
             players = players.OrderBy(p => p.getCurrentCost()).ToList();
 
-            foreach (Player p in players.Take(players.Count / 20))
+            foreach (Player p in players.Take(players.Count / 10))
             {
                 printPlayerTasks(p);
             }
@@ -133,11 +161,22 @@ namespace Scheduling
             {
                 if(!t.presetTask)
                 {
-                    Console.Out.WriteLine($"{$"{t.person.name} ({t.person.ShortTeamName()})".PadRight(25)} {t}");
+                    if(t.person == null)
+                    {
+                        Console.Out.WriteLine($"{"TODO!".PadRight(40)} {t}");
+                    } else
+                    {
+                        Console.Out.WriteLine($"{($"{t.person.name} ({t.person.ShortTeamName()})").PadRight(40)} {t}");
+                    }
+
                 }
             }
 
-
+            Console.Out.WriteLine("=====================WARNINGS===========================");
+            foreach(Player p in players)
+            {
+                p.checkOverlappingTasks();
+            }
 
 
 
@@ -166,21 +205,21 @@ namespace Scheduling
             }
             System.IO.File.WriteAllText("players.csv", playerList);
 
-            string schedule = "Datum, tijd, team thuis, team uit, scheidsrechter, teller, zaal\n";
+            string schedule = "Datum, tijd, team thuis, team uit, scheidsrechter, teller, veld, zaal\n";
             foreach (Match m in matches)
             {
                 schedule += m.ToCSV() + "\n";
             }
             System.IO.File.WriteAllText("schedule.csv", schedule);
 
-
+            Console.Out.WriteLine($"Task count: {tasks.Count()}");
             Console.In.ReadLine();
         }
 
 
         static void printPlayerTasks(Player p)
         {
-            Console.Out.WriteLine(p.name + " " + p.getCurrentCost());
+            Console.Out.WriteLine($"{p.name} ({p.ShortTeamName()}) {p.getCurrentCost()}");
             p.tasks = p.tasks.OrderBy(t => t.startTime).ToList();
 
             int tasksOnSameDay = 0;

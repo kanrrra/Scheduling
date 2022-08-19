@@ -2,13 +2,17 @@
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
+using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 
 namespace Scheduling
 {
-    class Match
+    internal class Match
     {
         public readonly string teamName;
+
+        public readonly string opponent;
+
         public Team team { get; private set; }
 
         public string refName { get; set; }
@@ -17,20 +21,33 @@ namespace Scheduling
         private DateTime startTime;
         private DateTime realStartTime;
 
+        private bool generateTasks;
         private List<Task> tasks = new List<Task>();
 
-        public Match(string teamName, DateTime startTime, string referee, string score)
+        public Match(string teamName, string opponent, DateTime startTime, string referee, string score, bool generateTasks = true)
         {
             this.teamName = teamName;
+            this.opponent = opponent;
+
             refName = referee;
             scoreName = score;
+
+            refName = Regex.Replace(refName, @"\(.*?\)", "").Trim();
+            scoreName = Regex.Replace(scoreName, @"\(.*?\)", "").Trim();
 
             this.startTime = startTime;
             realStartTime = startTime;
 
+            this.generateTasks = generateTasks;
+
             //revert timechange for late/short matches, otherwise the duration of 90 minutes results in the followup team not being able to ref/count
             if (this.startTime.Minute == 45)
                 this.startTime = this.startTime.AddMinutes(-15);
+        }
+
+        public bool GenerateTasks()
+        {
+            return generateTasks;
         }
 
         public void AddTask(Task t)
@@ -45,12 +62,17 @@ namespace Scheduling
 
         public DateTime GetRefereeStartTime()
         {
-            return startTime.AddMinutes(-30);
+            return startTime.AddMinutes(-15);
         }
 
         public DateTime GetPlayerStartTime()
         {
             return startTime.AddMinutes(-(30 + team.additionalPreMatchTime));
+        }
+
+        public DateTime GetProgramStartTime()
+        {
+            return startTime;
         }
 
         public DateTime GetEndTime()
@@ -60,7 +82,7 @@ namespace Scheduling
 
         private string ShortTeamName()
         {
-            return teamName.Substring(teamName.IndexOf("Taurus ") + 7); 
+            return teamName.Substring(teamName.IndexOf("Taurus ") + 7);
         }
 
         public override string ToString()
@@ -72,23 +94,24 @@ namespace Scheduling
 
         public string ToCSV()
         {
-            string s = startTime.ToShortDateString() + "," + startTime.ToShortTimeString() + "," + teamName + ",";
-            
+            string s = realStartTime.ToShortDateString() + "," + realStartTime.ToShortTimeString() + "," + teamName + "," + opponent + ",";
+
             Task referee = tasks.Find(t => t.type == TaskType.Referee);
             if (referee != null)
             {
                 s += referee.person.name + " (" + referee.person.ShortTeamName() + ")";
-            } else if(refName.Length > 0)
+            } else if (refName.Length > 0)
             {
-                s += refName + " (vol)";
+                s += refName;// + " (vol)";
             }
             s += ",";
-            
+
             Task scoreKeeping = tasks.Find(t => t.type == TaskType.ScoreKeeping);
-            if(scoreKeeping != null)
+            if (scoreKeeping != null)
             {
                 s += scoreKeeping.person.name + " (" + scoreKeeping.person.ShortTeamName() + ")";
             }
+            s += ",Kruisboog";
 
             return s;
         }
@@ -106,6 +129,40 @@ namespace Scheduling
         public int additionalsRequired()
         {
             return team.additionalPeopleRequired;
+        }
+
+
+        public override bool Equals(object obj)
+        {
+            if (obj == null)
+                return false;
+
+            if (!(obj is Match))
+                return false;
+
+            var other = obj as Match;
+
+            if (teamName != other.teamName ||
+                opponent != other.opponent ||
+                startTime != other.startTime)
+                return false;
+
+            return true;
+        }
+
+        public static bool operator ==(Match x, Match y)
+        {
+            if (object.ReferenceEquals(x, null))
+            {
+                return object.ReferenceEquals(y, null);
+            }
+
+            return x.Equals(y);
+        }
+
+        public static bool operator !=(Match x, Match y)
+        {
+            return !(x == y);
         }
     }
 }

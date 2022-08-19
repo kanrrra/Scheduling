@@ -42,6 +42,11 @@ namespace Scheduling
                 m.SetTeam(teams[m.teamName]);
                 m.team.addMatch(m);
 
+                if(!m.GenerateTasks())
+                {
+                    continue;
+                }
+
                 //add referee task
                 if (m.requiresReferee())
                 {
@@ -61,7 +66,7 @@ namespace Scheduling
                             volunteerPlayer.addTask(t);
                         } else
                         {
-                            Console.Out.WriteLine("Volunteer ref not found as player: " + m.refName);
+                            Console.Out.WriteLine($"Volunteer ref not found as player: {m.refName} \t at {m.GetProgramStartTime()}");
                         }
                         
                     }
@@ -81,6 +86,7 @@ namespace Scheduling
                 }
                 for (int i = 0; i < m.additionalsRequired(); i++)
                 {
+                    //national teams need adults
                     AgeGroup minimumAgeGroup = m.team.minimumRefereeQualification == RefereeQualification.National ? AgeGroup.Senior : AgeGroup.Mini;
 
                     Task t;
@@ -98,7 +104,7 @@ namespace Scheduling
                             volunteerPlayer.addTask(t);
                         } else
                         {
-                            Console.Out.WriteLine("Volunteer ref not found as player: " + m.scoreName);
+                            Console.Out.WriteLine($"Volunteer extra not found as player: {m.scoreName} \t at {m.GetProgramStartTime()}");
                         }
 
                     } else
@@ -121,6 +127,7 @@ namespace Scheduling
                 {
                     string playerName = bs.personel[i];
 
+                    //no preset person
                     if (playerName.Length < 1)
                     {
                         var shiftTask = new Task("", TaskType.BarKeeper, bs.startTime, bs.endTime, 16, Qualifications.RefereeQualification.None, AgeGroup.Mini);
@@ -134,7 +141,8 @@ namespace Scheduling
                             prevTask.SetLinkedTask(shiftTask);
                             shiftTask.SetLinkedTask(prevTask);
                         }
-                    } else
+                    }
+                    else
                     {
                         var volunteerPlayer = findPlayer(playerName);
 
@@ -169,18 +177,17 @@ namespace Scheduling
 
         private Player findPlayer(string playerName)
         {
-            var volunteerPlayer = players.Find(p => p.name == playerName);
+            var volunteerPlayer = players.Find(p => p.name.ToLower() == playerName.ToLower());
 
             if(volunteerPlayer == null)
             {
                 var nameParts = playerName.Trim().Split(' ');
                 if(nameParts.Length > 1) {
                     string lastName = nameParts[nameParts.Length - 1];
-                    lastName = lastName.First().ToString().ToUpper() + lastName.Substring(1);
                     string firstName = nameParts.Take(nameParts.Length - 1).Aggregate("", (a, b) => a + " " + b).Trim();
                     string tempName = lastName + " " + firstName;
 
-                    volunteerPlayer = players.Find(p => p.name == tempName);
+                    volunteerPlayer = players.Find(p => p.name.ToLower() == tempName.ToLower());
                 }
             }
 
@@ -193,7 +200,7 @@ namespace Scheduling
             {
                 int expectedTaskCount = bs.personel.Where(p => p.Length < 1).ToList().Count;
 
-                List<Task> relevantShifts = tasks.Where(t => t.type == TaskType.BarKeeper && t.startTime == bs.startTime).ToList();
+                List<Task> relevantShifts = tasks.Where(t => t.type == TaskType.BarKeeper && t.startTime == bs.startTime && t.endTime == bs.endTime).ToList();
 
                 if(relevantShifts.Count != expectedTaskCount)
                 {
@@ -203,7 +210,8 @@ namespace Scheduling
                 for(int i = 0; i < relevantShifts.Count; i++)
                 {
                     var p = relevantShifts.ElementAt(i).person;
-                    bs.personel[bs.personel.Length - i - 1] = p.name + " (" + p.ShortTeamName() + ")";
+                    int emptyIdx = Array.FindIndex(bs.personel, person => person.Trim().Length < 1);
+                    bs.personel[emptyIdx] = $"{p.name} ({p.ShortTeamName()})";
                 }
             }
         }
@@ -356,7 +364,7 @@ namespace Scheduling
         public double reportScore(string prefix)
         {
             double meanScore = players.Average(p => p.getCurrentCost());
-            double stdDev = players.Select(p => Math.Pow(p.getCurrentCost() - meanScore, 2)).Sum();
+            double stdDev = Math.Sqrt(players.Select(p => Math.Pow(p.getCurrentCost() - meanScore, 2)).Average());
             double sos = getSos();
 
             Console.Out.WriteLine(prefix + "mean: " + meanScore + " stdDev: " + stdDev + " sos: " + sos);
@@ -385,10 +393,18 @@ namespace Scheduling
                     double barScoreLossByOtherBarkeeper = 0;
                     if (task.type == TaskType.BarKeeper)
                     {
-                        Player otherBarPerson = task.GetLinkedTask().person;
-                        if (otherBarPerson.teams.Intersect(p.teams).Any())
+                        Task linkedTask = task.GetLinkedTask();
+
+                        //No linked task (meaning the other task is covered by a non player)
+                        if(linkedTask != null)
                         {
-                            barScoreLossByOtherBarkeeper = Math.Pow(otherBarPerson.getCurrentCost() + otherBarPerson.getScoreLossByDifferentBuddy(task.GetLinkedTask()), 2) - Math.Pow(otherBarPerson.getCurrentCost(), 2);
+                            Player otherBarPerson = linkedTask.person;
+
+                            //same team
+                            if (otherBarPerson.teams.Intersect(p.teams).Any())
+                            {
+                                barScoreLossByOtherBarkeeper = Math.Pow(otherBarPerson.getCurrentCost() + otherBarPerson.getScoreLossByDifferentBuddy(task.GetLinkedTask()), 2) - Math.Pow(otherBarPerson.getCurrentCost(), 2);
+                            }
                         }
                     }
                     scoreGainByRemoval -= barScoreLossByOtherBarkeeper;
@@ -401,7 +417,7 @@ namespace Scheduling
                         if (!playerUnderConsideration.canPerformTaskOnDay(task.startTime.Date)) continue;
 
                         //cant fit an aditional task
-                        if(playerUnderConsideration.tasks.Count >= playerUnderConsideration.getMaxTasks()) continue;
+                        if(playerUnderConsideration.getCurrentMaxHalfSeasonTaskCount(task.startTime.Year) >= playerUnderConsideration.getMaxAllowedTasks(task.startTime.Year)) continue;
 
 
                         //new cost - current cost
@@ -409,10 +425,15 @@ namespace Scheduling
 
                         if (task.type == TaskType.BarKeeper)
                         {
-                            Player otherBarPerson = task.GetLinkedTask().person;
-                            if (otherBarPerson.teams.Intersect(playerUnderConsideration.teams).Any())
+                            Task linkedTask = task.GetLinkedTask();
+
+                            if(linkedTask != null)
                             {
-                                scoreCost -= barScoreLossByOtherBarkeeper;
+                                Player otherBarPerson = linkedTask.person;
+                                if (otherBarPerson.teams.Intersect(playerUnderConsideration.teams).Any())
+                                {
+                                    scoreCost -= barScoreLossByOtherBarkeeper;
+                                }
                             }
                         }
 
@@ -473,7 +494,10 @@ namespace Scheduling
 
                 foreach (Player p in players)
                 {
-                    if (!p.hasTaskOnTime(t.startTime, t.endTime) && !p.hasMatchOnTime(t.startTime, t.endTime) && p.canPerformTaskOnDay(t.startTime) && p.tasks.Count < p.getMaxTasks())
+                    if (!p.hasTaskOnTime(t.startTime, t.endTime) 
+                            && !p.hasMatchOnTime(t.startTime, t.endTime) 
+                            && p.canPerformTaskOnDay(t.startTime) 
+                            && p.getCurrentMaxHalfSeasonTaskCount(t.startTime.Year) < p.getMaxAllowedTasks(t.startTime.Year))
                     {
                         double currentCost = p.getCostNewTask(t);
 

@@ -28,7 +28,7 @@ namespace Scheduling
             this.additionalPreMatchTime = additionalPreMatchTime;
             this.matchDurationMinutes = matchDurationMinutes;
 
-            minimumRefereeQualification = Qualifications.textTeamToReferee(level);
+            minimumRefereeQualification = Qualifications.textTeamToReferee(level, name);
         }
 
         public void addExceptionDate(DateTime date)

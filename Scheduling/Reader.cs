@@ -1,10 +1,22 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Text.RegularExpressions;
 
 namespace Scheduling
 {
     internal class Reader
     {
+
+        Dictionary<string, int> matchFileIndices = new Dictionary<string, int>();
+
+        string dateIndex = "datum";
+        string timeIndex = "tijd";
+        string homeIndex = "team thuis";
+        string awayIndex = "team uit";
+        string gymIndex = "zaal";
+        string refereeIndex = "scheidsrechter";
+        string scoreIndex = "teller";
+
         public Reader()
         {
         }
@@ -30,6 +42,12 @@ namespace Scheduling
             if (name.Length < 1) return null;
 
             string teamName = tokens[1].Trim();
+            if(teamName.Length == 0)
+            {
+                teamName = "V";
+
+                Console.Out.WriteLine($"Found player {name} without team. Assigning to team v (volunteer)");
+            }
 
             double currentCost = 0;
             if(tokens.Length > 4 && tokens[4].Length > 0)
@@ -52,7 +70,27 @@ namespace Scheduling
                 return null;
             }
 
-            return new BarShift(dateFromString(tokens[0], tokens[1]), dateFromString(tokens[0], tokens[2]), tokens[3], tokens[4]);
+            DateTime startTime = dateFromString(tokens[0], tokens[1]);
+            DateTime endTime = dateFromString(tokens[0], tokens[2]);
+
+            string person1 = Regex.Replace(tokens[3], @"\(.*?\)", "").Trim();
+            string person2 = Regex.Replace(tokens[4], @"\(.*?\)", "").Trim();
+
+
+
+            if (startTime.DayOfWeek != DayOfWeek.Saturday)
+            {
+                if(person1.Trim().Length < 1)
+                {
+                    person1 = "volunteer";
+                }
+                if (person2.Trim().Length < 1)
+                {
+                    person2 = "volunteer";
+                }
+            }
+
+            return new BarShift(startTime, endTime, person1, person2);
         }
 
 
@@ -93,8 +131,8 @@ namespace Scheduling
 
             if (gym != "Kruisboog")
             {
-                string awayTeam = tokens[3];
-                
+                string awayTeam = tokens[3].Substring(tokens[3].IndexOf("Taurus"));
+
                 return new DateException(dateFromString(date, "00:00").Date, awayTeam);
             }
 
@@ -129,7 +167,16 @@ namespace Scheduling
         private Team createTeamFromString(string teamString)
         {
             string[] tokens = teamString.Split(',');
-            return new Team(tokens[0].Trim(' '), tokens[1].Trim(' '), int.Parse(tokens[2]), int.Parse(tokens[3]), int.Parse(tokens[4]), int.Parse(tokens[5]));
+
+            string name = tokens[0].Trim(' ');
+            string level = tokens[1].Trim(' ');
+
+            int additionalPeopleRequired = int.Parse(tokens[2]);
+            int flagsRequired = int.Parse(tokens[3]);
+            int additionalPreMatchTime = int.Parse(tokens[4]);
+            int matchDurationMinutes = int.Parse(tokens[5]);
+
+            return new Team(name, level, additionalPeopleRequired, flagsRequired, additionalPreMatchTime, matchDurationMinutes);
         }
 
         public List<Team> readTeams(string path)
@@ -179,12 +226,18 @@ namespace Scheduling
         {
             List<Match> matches = new List<Match>();
 
-            string line;
             
             System.IO.StreamReader file = new System.IO.StreamReader(path);
 
             //skip first line
-            file.ReadLine();
+            string line = file.ReadLine();
+            if(line == null)
+            {
+                return matches;
+            }
+
+            setHeaderFileMatchIndices(line);
+
 
             while ((line = file.ReadLine()) != null)
             {
@@ -192,7 +245,17 @@ namespace Scheduling
 
                 var match = createMatchFromProgramString(line);
 
-                if (match != null) matches.Add(match);
+                if (match != null)
+                {
+                    if(matches.Count > 0 &&  match == matches[matches.Count - 1])
+                    {
+                        matches.Add(new Match(match.opponent, match.teamName, match.GetProgramStartTime(), "", "", false));
+                    } else
+                    {
+                        matches.Add(match);
+                    }
+
+                }
             }
 
             file.Close();
@@ -200,32 +263,52 @@ namespace Scheduling
             return matches;
         }
 
+        private void setHeaderFileMatchIndices(string line)
+        {
+            string[] tokens = line.Split(new char[] { ',', ';', '\t' });
+
+            for(int i = 0; i < tokens.Length; i++)
+            {
+                matchFileIndices[tokens[i].ToLower().Trim()] = i;
+            }
+
+        }
+
         //matches
         private Match createMatchFromProgramString(string matchString)
         {
             string[] tokens = matchString.Split(new char[] { ',', ';', '\t' });
 
-            string date = tokens[0];
-            string time = tokens[1];
-            string homeTeam = tokens[2];
-            string awayTeam = tokens[3];
-            string referee = tokens[4];
-            string score = tokens[5];
-            string gym = tokens[10];
+            string date = tokens[matchFileIndices[dateIndex]];
+            string time = tokens[matchFileIndices[timeIndex]];
+            string gym = tokens[matchFileIndices[gymIndex]];
 
             if (date.Length < 1) return null;
+
             var matchDate = dateFromString(date, time);
 
-            if (matchDate.DayOfWeek != DayOfWeek.Saturday)
-                return null;
-
-            if (gym == "Kruisboog")
+            if (gym != "Kruisboog")
             {
-                //official start time
-                return new Match(homeTeam, matchDate, referee, score);
-            } 
+                return null;
+            }
 
-            return null;
+
+            string homeTeam = tokens[matchFileIndices[homeIndex]].Substring(tokens[matchFileIndices[homeIndex]].IndexOf("Taurus"));
+            string awayTeam = tokens[matchFileIndices[awayIndex]];
+            string referee = tokens[matchFileIndices[refereeIndex]];
+            string score = tokens[matchFileIndices[scoreIndex]];
+
+            if (matchDate.DayOfWeek != DayOfWeek.Saturday)
+            {
+                if(referee.Trim().Length == 0 && score.Trim().Length == 0)
+                    return null;
+
+                if (referee.Trim().Length == 0) referee = "Todo";
+                if (score.Trim().Length == 0) referee = "Zelf";
+            }
+
+            //official start time
+            return new Match(homeTeam, awayTeam, matchDate, referee, score);
         }
 
     }

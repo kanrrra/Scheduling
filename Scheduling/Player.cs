@@ -12,7 +12,7 @@ namespace Scheduling
         public readonly List<string> teamNames = new List<string>();
 
         private readonly AgeGroup ageGroup;
-        private readonly RefereeQualification refereeQualification;
+        public RefereeQualification RefereeQualification { get; private set; }
         private readonly DateTime dateOfBirth;
 
         public List<Team> teams = new List<Team>();
@@ -22,7 +22,7 @@ namespace Scheduling
         double EXTRA_COST_SAME_DAY_TASK = 0.5;
         double NON_MATCH_DAY_BONUS = 0.2;
         private double accruedCost;
-        private bool exemption;
+        public bool Exemption { get; private set; }
 
         public Player(string name, string teamName, string refereeQualificationText, DateTime dateOfBirth, double accruedCost, bool exemption)
         {
@@ -36,12 +36,12 @@ namespace Scheduling
 
             this.ageGroup = textToAgeGroupRef(teamNames[0].ToLower());
 
-            this.refereeQualification = textLabelToReferee(refereeQualificationText);
+            this.RefereeQualification = textLabelToReferee(refereeQualificationText);
 
 
             this.dateOfBirth = dateOfBirth;
             this.accruedCost = accruedCost;
-            this.exemption = exemption;
+            this.Exemption = exemption;
         }
 
         public void addTeam(Team t)
@@ -111,7 +111,7 @@ namespace Scheduling
         public bool isQualified(Task t)
         {
             // If you have an exemption you dont have to do anything, cba to make another check
-            if (exemption) {
+            if (Exemption) {
                 return false;
             }
 
@@ -129,7 +129,7 @@ namespace Scheduling
             && t.endTime.TimeOfDay > new TimeSpan(16, 30, 0)
             && t.startTime.TimeOfDay < new TimeSpan(20, 0, 0))        //no slow people during peak time
             {
-                if (ageGroup == AgeGroup.Recreative || ageGroup < AgeGroup.Senior)
+                if (/*ageGroup == AgeGroup.Recreative ||*/ ageGroup < AgeGroup.Senior)
                 {
                     return false;
                 }
@@ -142,7 +142,7 @@ namespace Scheduling
             }
 
             //VS2 only referee VS2
-            if (refereeQualification == RefereeQualification.VS2)
+            if (RefereeQualification == RefereeQualification.VS2)
             {
                 if (t.type != TaskType.Referee)
                 {
@@ -160,7 +160,7 @@ namespace Scheduling
                 }
             }
 
-            if (refereeQualification == RefereeQualification.VS2_A)
+            if (RefereeQualification == RefereeQualification.VS2_A)
             {
                 if (t.type != TaskType.Referee)
                 {
@@ -194,7 +194,7 @@ namespace Scheduling
             }
 
             //kids with vs2+
-            if (ageGroup < AgeGroup.Senior && refereeQualification > RefereeQualification.VS1_TRIAL)
+            if (ageGroup < AgeGroup.Senior && RefereeQualification > RefereeQualification.VS1_TRIAL)
             {
                 if (t.type == TaskType.Referee)
                 {
@@ -422,7 +422,7 @@ namespace Scheduling
 
         public override string ToString()
         {
-            string id = name + " " + dateOfBirth + ":" + refereeQualification + ": " + getCurrentCost() + "\n";
+            string id = name + " " + dateOfBirth + ":" + RefereeQualification + ": " + getCurrentCost() + "\n";
             foreach (Task t in tasks)
             {
                 id += "T: " + t + " " + getCostCurrentTask(t) + "\n";
@@ -433,7 +433,7 @@ namespace Scheduling
 
         public string ToCSV()
         {
-            return name + "," + teamNames.Aggregate((a, b) => a + "." + b) + "," + refereeQualification + "," + dateOfBirth.ToShortDateString() + "," + getCurrentCost();
+            return name + "," + teamNames.Aggregate((a, b) => a + "." + b) + "," + RefereeQualification + "," + dateOfBirth.ToShortDateString() + "," + getCurrentCost();
         }
 
         public string ShortTeamName()
@@ -447,17 +447,17 @@ namespace Scheduling
 
         public bool IsQualifiedReferee(RefereeQualification rq)
         {
-            return refereeQualification >= rq;
+            return RefereeQualification >= rq;
         }
 
         internal bool isMoreQualified(Player alternativePlayer, Task task)
         {
-            return refereeQualification > alternativePlayer.refereeQualification;
+            return RefereeQualification > alternativePlayer.RefereeQualification;
         }
 
         internal bool isLessQualified(Player alternativePlayer, Task task)
         {
-            return refereeQualification < alternativePlayer.refereeQualification;
+            return RefereeQualification < alternativePlayer.RefereeQualification;
         }
     }
 }

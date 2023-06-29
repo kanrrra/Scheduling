@@ -52,14 +52,20 @@ namespace Scheduling
         {
         }
 
-        //misc
+        //misc YYMMDD
         private DateTime dateFromString(string date, string time)
         {
             string[] dateTokens = date.Split(new char[] { '-', '/' });
             string[] timeTokens = time.Split(new char[] { ':', '.' });
 
-            DateTime dateTime = new DateTime(int.Parse(dateTokens[0]), int.Parse(dateTokens[1]), int.Parse(dateTokens[2]),
-                int.Parse(timeTokens[0]), int.Parse(timeTokens[1]), 0);
+            int year = int.Parse(dateTokens[0]);
+            int month = int.Parse(dateTokens[1]);
+            int day = int.Parse(dateTokens[2]);
+
+            int hour = int.Parse(timeTokens[0]);
+            int minute = int.Parse(timeTokens[1]);
+
+            DateTime dateTime = new DateTime(year, month, day, hour, minute, 0);
 
             return dateTime;
         }
@@ -142,6 +148,8 @@ namespace Scheduling
 
         public List<DateException> readExceptionsFromProgram(string exceptionPath)
         {
+            Console.Out.WriteLine("Reading unavailable dates");
+
             List<DateException> dateExceptions = new List<DateException>();
 
             string line;
@@ -205,6 +213,8 @@ namespace Scheduling
 
         public List<BarShift> readBarShifts(string barPath)
         {
+            Console.Out.WriteLine("Reading bar shifts");
+
             List<BarShift> barshifts = new List<BarShift>();
 
             string line;
@@ -245,6 +255,8 @@ namespace Scheduling
 
         public List<Team> readTeams(string path)
         {
+            Console.Out.WriteLine("Reading teams");
+
             List<Team> teams = new List<Team>();
 
             string line;
@@ -264,6 +276,8 @@ namespace Scheduling
 
         public List<Player> readPlayers(string path)
         {
+            Console.Out.WriteLine("Reading players");
+
             List<Player> players = new List<Player>();
 
             string line;
@@ -294,8 +308,9 @@ namespace Scheduling
 
         public List<Match> readProgram(string path)
         {
-            List<Match> matches = new List<Match>();
+            Console.Out.WriteLine("Reading program");
 
+            List<Match> matches = new List<Match>();
             
             System.IO.StreamReader file = new System.IO.StreamReader(path);
 

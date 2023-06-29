@@ -69,12 +69,13 @@ namespace Scheduling
 
                 if (!summary.ContainsKey(teamname))
                 {
-                    summary[teamname] = new int[] { 0, 0, 0 };
+                    summary[teamname] = new int[] { 0, 0, 0, 0 };
                 }
 
                 summary[teamname][0]++;
                 summary[teamname][1] += p.tasks.Count;
                 summary[teamname][2] += p.IsQualifiedReferee(Qualifications.RefereeQualification.VS1) ? 1 : 0;
+                summary[teamname][3] += p.Exemption ? 1 : 0;
 
 
                 printPlayerTasks(p);
@@ -83,7 +84,7 @@ namespace Scheduling
             Console.Out.WriteLine("========================================================");
 
             foreach (var item in summary) {
-                Console.Out.WriteLine($"Team {item.Key} has {item.Value[1] / (double)item.Value[0]:F1} tasks/player and {item.Value[2] / (double)item.Value[0]:F1} refs/player ({item.Value[0]} players, {item.Value[1]} tasks, {item.Value[2]} refs)");
+                Console.Out.WriteLine($"Team {item.Key} has {item.Value[1] / (double)item.Value[0]:F1} tasks/player and {item.Value[2] / (double)item.Value[0]:F1} refs/player ({item.Value[0]} players, {item.Value[1]} tasks, {item.Value[2]} refs, {item.Value[3]} volunteer exemptions)");
             }
 
 
@@ -140,18 +141,18 @@ namespace Scheduling
                 }
             }
 
-            Console.Out.WriteLine("=========================TOP X============================");
+            Console.Out.WriteLine("=========================TOP 10%============================");
             players = players.OrderByDescending(p => p.getCurrentCost()).ToList();
 
-            foreach (Player p in players.Take(players.Count / 20))
+            foreach (Player p in players.Take(players.Count / 10))
             {
                 printPlayerTasks(p);
             }
 
-            Console.Out.WriteLine("=========================BOT X============================");
-            players = players.OrderBy(p => p.getCurrentCost()).ToList();
+            Console.Out.WriteLine("=========================BOT 10%============================");
+            var playersWithoutExemption = players.OrderBy(p => p.getCurrentCost()).Where(p => !p.Exemption).ToList();
 
-            foreach (Player p in players.Take(players.Count / 10))
+            foreach (Player p in playersWithoutExemption.Take(playersWithoutExemption.Count / 10))
             {
                 printPlayerTasks(p);
             }
@@ -219,7 +220,7 @@ namespace Scheduling
 
         static void printPlayerTasks(Player p)
         {
-            Console.Out.WriteLine($"{p.name} ({p.ShortTeamName()}) {p.getCurrentCost()}");
+            Console.Out.WriteLine($"{p.name} ({p.ShortTeamName()}) Exemption: {p.Exemption} referee: {p.RefereeQualification} Cost: {p.getCurrentCost()}");
             p.tasks = p.tasks.OrderBy(t => t.startTime).ToList();
 
             int tasksOnSameDay = 0;

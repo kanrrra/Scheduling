@@ -31,7 +31,7 @@ namespace Scheduling
             minimumRefereeQualification = Qualifications.textTeamToReferee(level, name);
         }
 
-        public void addExceptionDate(DateTime date)
+        public void addUnavailableDate(DateTime date)
         {
             unavailableDates.Add(date);
         }

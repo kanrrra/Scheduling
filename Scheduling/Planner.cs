@@ -31,7 +31,7 @@ namespace Scheduling
                     Console.In.ReadLine();
                     System.Environment.Exit(1);
                 }
-                teams[de.teamName].addExceptionDate(de.date);
+                teams[de.teamName].addUnavailableDate(de.date);
             }
 
             foreach (Player p in players)
@@ -54,6 +54,7 @@ namespace Scheduling
                 m.SetTeam(teams[m.teamName]);
                 m.team.addMatch(m);
 
+                // for duplicate matches (Taurus vs Taurus)
                 if (!m.GenerateTasks())
                 {
                     continue;
@@ -66,6 +67,7 @@ namespace Scheduling
 
                     if(minimumAgeGroup < AgeGroup.Senior)
                     {
+                        // youth at least 2 levels higher
                         minimumAgeGroup = (AgeGroup)Math.Min((int)AgeGroup.Senior, (int)minimumAgeGroup + 2);
                     }
 
@@ -104,6 +106,7 @@ namespace Scheduling
                     tasks.Add(t);
                     m.AddTask(t);
                 }
+
                 for (int i = 0; i < m.additionalsRequired(); i++)
                 {
                     //national teams need adults
@@ -196,7 +199,6 @@ namespace Scheduling
             }
 
             tasks = tasks.OrderByDescending(t => t.GetRefereeQualification()).ThenByDescending(t => t.getAgeQualification()).ToList();
-
         }
 
         private Player findPlayer(string playerName)
@@ -219,6 +221,11 @@ namespace Scheduling
             return volunteerPlayer;
         }
 
+        /**
+         * Fill the list of bar shifts with information from tasks
+         * 
+         * 
+         */
         public void fillBarShifts(List<BarShift> shifts)
         {
             foreach (BarShift bs in shifts)
@@ -398,6 +405,7 @@ namespace Scheduling
             return sos;
         }
 
+        // move task from one player to another
         public void searchTask()
         {
             //from player
@@ -437,18 +445,13 @@ namespace Scheduling
 
                     foreach (Player playerUnderConsideration in players)
                     {
-                        //if (playerUnderConsideration.name == "Brantsma Ela" && task.Note == "Taurus DS 3")
-                        //{
-                        //    Console.Out.WriteLine("test");
-                        //}
-
                         if (p == playerUnderConsideration) continue;
                         if (!playerUnderConsideration.isQualified(task)) continue;
                         if (playerUnderConsideration.isBusyOnTime(task.schedulingStartTime, task.endTime)) continue;
                         if (!playerUnderConsideration.canPerformTaskOnDay(task.startTime.Date)) continue;
 
                         //cant fit an aditional task
-                        if (playerUnderConsideration.getCurrentMaxHalfSeasonTaskCount(task.startTime.Year) >= playerUnderConsideration.getMaxAllowedTasks(task.startTime.Year)) continue;
+                        if (playerUnderConsideration.getCurrentHalfSeasonTaskCount(task.startTime.Year) >= playerUnderConsideration.getMaxAllowedTasks(task.startTime.Year)) continue;
 
 
                         //new cost - current cost
@@ -527,7 +530,7 @@ namespace Scheduling
                 {
                     if (!p.isBusyOnTime(t.schedulingStartTime, t.endTime)
                             && p.canPerformTaskOnDay(t.startTime)
-                            && p.getCurrentMaxHalfSeasonTaskCount(t.startTime.Year) < p.getMaxAllowedTasks(t.startTime.Year))
+                            && p.getCurrentHalfSeasonTaskCount(t.startTime.Year) < p.getMaxAllowedTasks(t.startTime.Year))
                     {
                         double currentCost = p.getCostNewTask(t);
 

@@ -334,6 +334,7 @@ namespace Scheduling
                 {
                     if(matches.Count > 0 &&  match == matches[matches.Count - 1])
                     {
+                        // for duplicate matches i.e. Taurus vs Taurus
                         matches.Add(new Match(match.opponent, match.teamName, match.GetProgramStartTime(), "", "", false, match.field));
                     } else
                     {

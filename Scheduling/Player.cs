@@ -54,7 +54,7 @@ namespace Scheduling
             tasks.Add(t);
             t.person = this;
 
-            if (getCurrentMaxHalfSeasonTaskCount(t.startTime.Year) > getMaxAllowedTasks(t.startTime.Year))
+            if (getCurrentHalfSeasonTaskCount(t.startTime.Year) > getMaxAllowedTasks(t.startTime.Year))
             {
                 throw new Exception("HELP");
             }
@@ -296,11 +296,12 @@ namespace Scheduling
             return newScoreTask - currentScoreTask;
         }
 
-        public int getCurrentMaxHalfSeasonTaskCount(int year = -1)
+        public int getCurrentHalfSeasonTaskCount(int year)
         {
             if(year == -1)
             {
-                return tasks.GroupBy(t => t.startTime.Year).OrderByDescending(s => s.Count()).First().Count();
+                throw new Exception();
+                // return tasks.GroupBy(t => t.startTime.Year).OrderByDescending(s => s.Count()).First().Count();
             }
 
             return tasks.Count(t => t.startTime.Year == year);
@@ -312,7 +313,8 @@ namespace Scheduling
             {
                 if(year == -1)
                 {
-                    return Math.Max(1, tasks.Count(t => t.presetTask));
+                    throw new Exception();
+                    // return Math.Max(1, tasks.Count(t => t.presetTask));
 
                 }
                 return Math.Max(1, tasks.Count(t => t.presetTask && t.startTime.Year == year));
@@ -344,10 +346,13 @@ namespace Scheduling
             }
         }
 
-        private double getTimeCost(Task t)
+        private double getTeamCost(Task t)
         {
-            double duration = t.endTime.Subtract(t.startTime).TotalHours;
+            return 0;
+        }
 
+        private double getWaitTime(Task t)
+        {
             double minWaitTime = double.MaxValue;
             foreach (Team team in teams)
             {
@@ -366,43 +371,39 @@ namespace Scheduling
                         //before
                         waitTime = m.GetPlayerStartTime().Subtract(t.endTime).TotalHours;
                     }
-                    else if ((t.type == TaskType.Referee || t.type == TaskType.ScoreKeeping) && (t.startTime >= m.GetEndTime() || t.endTime <= m.GetProgramStartTime()))
+                    else
                     {
-                        //play your own match and then ref/count on the same field is ok
-                        waitTime = 0;
-                    } else
-                    {
+                        //during
                         //dont care about the past
-                        if(m.GetProgramStartTime() > DateTime.Now)
+                        if (m.GetProgramStartTime() > DateTime.Now)
                         {
                             //Console.Out.WriteLine($"Warning -> Previous task ({t}) during match {m} for {name}");
-                            if(!t.presetTask)
+                            if (!t.presetTask)
                             {
                                 throw new Exception($"Task during match for {name} on {m.GetProgramStartTime()}");
                             }
                         }
-                        
+
                         waitTime = 0;
-                        //during
                     }
 
                     minWaitTime = Math.Min(minWaitTime, waitTime);
-                    //if (waitTime != double.MaxValue)
-                    //{
-                    //    if (waitTime < minWaitTime)
-                    //    {
-                    //        minWaitTime = waitTime;
-                    //    }
-                    //    //break;
-                    //}
-
                 }
             }
 
+            return minWaitTime;
+        }
+
+        private double getTimeCost(Task t)
+        {
+            double duration = t.endTime.Subtract(t.startTime).TotalHours;
+
+            double waitTime = getWaitTime(t);
+
             double waitTimeBonus = 0;
-            if (minWaitTime != double.MaxValue)
+            if (waitTime != double.MaxValue)
             {
-                waitTimeBonus = minWaitTime / 10;//Math.Min(1, minWaitTime / 4);
+                waitTimeBonus = waitTime / 10;
             }
 
             //no match on this day
@@ -455,9 +456,9 @@ namespace Scheduling
             return RefereeQualification > alternativePlayer.RefereeQualification;
         }
 
-        internal bool isLessQualified(Player alternativePlayer, Task task)
-        {
-            return RefereeQualification < alternativePlayer.RefereeQualification;
-        }
+        //internal bool isLessQualified(Player alternativePlayer, Task task)
+        //{
+        //    return RefereeQualification < alternativePlayer.RefereeQualification;
+        //}
     }
 }

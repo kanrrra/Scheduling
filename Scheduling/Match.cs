@@ -75,7 +75,7 @@ namespace Scheduling
 
         public DateTime GetProgramStartTime()
         {
-            return startTime;
+            return realStartTime;
         }
 
         public DateTime GetEndTime()
@@ -93,6 +93,47 @@ namespace Scheduling
             string shortTeamName = ShortTeamName();
 
             return shortTeamName + " " + realStartTime;
+        }
+
+        public List<string> GetProgramValues()
+        {
+            List<string> values = new List<string>();
+
+            Task referee = tasks.Find(t => t.type == TaskType.Referee);
+            if (referee != null)
+            {
+                if (referee.person != null)
+                {
+                    values.Add(referee.person.name + " (" + referee.person.ShortTeamName() + ")");
+                }
+                else
+                {
+                    values.Add("TODO!");
+                }
+            }
+            else if (refName.Length > 0)
+            {
+                values.Add(refName);// + " (vol)";
+            }
+
+            Task scoreKeeping = tasks.Find(t => t.type == TaskType.ScoreKeeping);
+            if (scoreKeeping != null)
+            {
+                if (scoreKeeping.person != null)
+                {
+                    values.Add(scoreKeeping.person.name + " (" + scoreKeeping.person.ShortTeamName() + ")");
+                }
+                else
+                {
+                    values.Add("TODO!");
+                }
+            } else if (scoreName.Length > 0)
+            {
+                values.Add(scoreName);
+            }
+            values.Add("");
+
+            return values;
         }
 
         public string ToCSV()

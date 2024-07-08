@@ -10,6 +10,7 @@ namespace Scheduling
     {
         public readonly string name;
         public readonly List<string> teamNames = new List<string>();
+        private HashSet<string> namePartsSet;
 
         private readonly AgeGroup ageGroup;
         public RefereeQualification RefereeQualification { get; private set; }
@@ -21,12 +22,16 @@ namespace Scheduling
         double SAME_TEAM_BARSHIFT_MULTIPLIER = 0.9;
         double EXTRA_COST_SAME_DAY_TASK = 0.5;
         double NON_MATCH_DAY_BONUS = 0.2;
+        double REFEREE_INCENTIVE_MULLTIPLIER = 1.5;
         private double accruedCost;
         public bool Exemption { get; private set; }
 
         public Player(string name, string teamName, string refereeQualificationText, DateTime dateOfBirth, double accruedCost, bool exemption)
         {
             this.name = name;
+
+            string[] nameParts = name.ToLower().Trim().Split(' ');
+            namePartsSet = nameParts.Where(part => part.Length > 1).ToHashSet();
 
             string[] tokens = teamName.Split('.');
             foreach (string tn in tokens)
@@ -54,7 +59,7 @@ namespace Scheduling
             tasks.Add(t);
             t.person = this;
 
-            if (getCurrentHalfSeasonTaskCount(t.startTime.Year) > getMaxAllowedTasks(t.startTime.Year))
+            if (getTaskCount() > getMaxAllowedTasks(t.startTime))
             {
                 throw new Exception("HELP");
             }
@@ -111,7 +116,8 @@ namespace Scheduling
         public bool isQualified(Task t)
         {
             // If you have an exemption you dont have to do anything, cba to make another check
-            if (Exemption) {
+            if (Exemption)
+            {
                 return false;
             }
 
@@ -207,7 +213,7 @@ namespace Scheduling
                     return ageGroup + 1 >= t.minimumAgeGroup;
                 }
             }
-            
+
             return (ageGroup == AgeGroup.Senior || ageGroup >= t.minimumAgeGroup);
         }
 
@@ -277,12 +283,12 @@ namespace Scheduling
                 throw new Exception();
             }
 
-            int tasksOnDate = hasTaskOnDate(t.startTime.Date);
-            if (tasksOnDate > 1)
-            {
-                //if you have more than 1 task on a day, every task costs half an hour extra
-                return timeCost + EXTRA_COST_SAME_DAY_TASK;
-            }
+            //int tasksOnDate = hasTaskOnDate(t.startTime.Date);
+            //if (tasksOnDate > 1)
+            //{
+            //    //if you have more than 1 task on a day, every task costs half an hour extra
+            //    return timeCost + EXTRA_COST_SAME_DAY_TASK;
+            //}
 
             return timeCost;
 
@@ -296,9 +302,14 @@ namespace Scheduling
             return newScoreTask - currentScoreTask;
         }
 
+        public int getTaskCount()
+        {
+            return tasks.Count;
+        }
+
         public int getCurrentHalfSeasonTaskCount(int year)
         {
-            if(year == -1)
+            if (year == -1)
             {
                 throw new Exception();
                 // return tasks.GroupBy(t => t.startTime.Year).OrderByDescending(s => s.Count()).First().Count();
@@ -307,21 +318,26 @@ namespace Scheduling
             return tasks.Count(t => t.startTime.Year == year);
         }
 
-        public int getMaxAllowedTasks(int year = -1)
+        public int getMaxAllowedTasks(DateTime date)
         {
             if (ageGroup == AgeGroup.Recreative)
             {
-                if(year == -1)
-                {
-                    throw new Exception();
-                    // return Math.Max(1, tasks.Count(t => t.presetTask));
+                int maxAmountAccordingToRules = 1;
+                if (date.Month < 7) maxAmountAccordingToRules = 2;
 
-                }
-                return Math.Max(1, tasks.Count(t => t.presetTask && t.startTime.Year == year));
+                return Math.Max(maxAmountAccordingToRules, tasks.Count(t => t.presetTask));
             }
 
             return int.MaxValue;
         }
+
+        //public bool areTasksAllowedBasedOnTasksPerYear(List<Task> tasks)
+        //{
+        //    if (ageGroup != AgeGroup.Recreative) return true;
+
+        //    var orderedTasks = tasks.OrderBy(t => t.startTime.Year);
+
+        //}
 
         public void checkOverlappingTasks()
         {
@@ -332,14 +348,14 @@ namespace Scheduling
                     Match m = team.matches.Find(match => match.GetPlayerStartTime().Date == t.startTime.Date);
                     if (m != null)
                     {
-                        
+
                         if (t.schedulingStartTime < m.GetEndTime() && t.endTime > m.GetPlayerStartTime())
                         {
                             //if (t.type != TaskType.Referee && t.type != TaskType.ScoreKeeping || (m.GetProgramStartTime() - t.endTime).TotalMinutes <= 0)
                             //{
                             Console.Out.WriteLine($"Warning -> Previous task ({t}) during match {m} for {name}");
                             //}
-                            
+
                         }
                     }
                 }
@@ -413,6 +429,11 @@ namespace Scheduling
                 nonMatchDayBonus = NON_MATCH_DAY_BONUS;
             }
 
+            if (t.type == TaskType.Referee)
+            {
+                duration *= REFEREE_INCENTIVE_MULLTIPLIER;
+            }
+
             return duration + waitTimeBonus + nonMatchDayBonus;
         }
 
@@ -444,6 +465,14 @@ namespace Scheduling
             if (teamNames[0].Length <= prefix.Length) return teamNames[0];
 
             return teamNames[0].Substring(teamNames[0].IndexOf(prefix) + prefix.Length);
+        }
+
+        public bool ApproxNameMatch(string name)
+        {
+            string[] nameParts = name.Trim().Split(' ');
+            HashSet<string> namePartsSetB = nameParts.Where(part => part.Length > 1).ToHashSet();
+
+            return namePartsSet.SetEquals(namePartsSetB);
         }
 
         public bool IsQualifiedReferee(RefereeQualification rq)

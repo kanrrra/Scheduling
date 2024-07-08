@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Net.Quic;
 using static Scheduling.Qualifications;
 
 namespace Scheduling
@@ -12,10 +13,13 @@ namespace Scheduling
         List<Player> players;
         Dictionary<string, Team> teams = new Dictionary<string, Team>();
 
-        public Planner(List<Match> matchesHolder, List<Player> playersHolder, List<Team> teamsHolder, List<BarShift> barShifts, List<DateException> dateExceptions)
+        HashSet<string> volunteers;
+
+        public Planner(List<Match> matchesHolder, List<Player> playersHolder, List<Team> teamsHolder, List<BarShift> barShifts, List<DateException> dateExceptions, HashSet<string> volunteersHolder)
         {
             this.players = playersHolder;
             this.matches = matchesHolder;
+            this.volunteers = volunteersHolder;
 
             //create team lookup
             foreach (Team t in teamsHolder)
@@ -48,6 +52,8 @@ namespace Scheduling
                 }
             }
 
+            bool anyVolunteerNotFound = false;
+
             //set team objects
             foreach (Match m in matches)
             {
@@ -65,7 +71,7 @@ namespace Scheduling
                 {
                     AgeGroup minimumAgeGroup = textToAgeGroupRef(m.team.name.ToLower());
 
-                    if(minimumAgeGroup < AgeGroup.Senior)
+                    if (minimumAgeGroup < AgeGroup.Senior)
                     {
                         // youth at least 2 levels higher
                         minimumAgeGroup = (AgeGroup)Math.Min((int)AgeGroup.Senior, (int)minimumAgeGroup + 2);
@@ -86,9 +92,11 @@ namespace Scheduling
 
                             volunteerPlayer.addTask(t);
                         }
-                        else
+                        else if (!findVolunteer(m.refName))
                         {
                             Console.Out.WriteLine($"Volunteer ref not found as player: {m.refName} \t at {m.GetProgramStartTime()}");
+                            anyVolunteerNotFound = true;
+
                         }
 
                     }
@@ -122,13 +130,15 @@ namespace Scheduling
                             m.scoreName = "";
 
                             t = new Task(m.team.name, TaskType.ScoreKeeping, m.GetRefereeStartTime(), m.GetEndTime(), 0, Qualifications.RefereeQualification.None, minimumAgeGroup, true);
-
                             m.AddTask(t);
+                            tasks.Add(t);
+
                             volunteerPlayer.addTask(t);
                         }
-                        else
+                        else if (!findVolunteer(m.scoreName))
                         {
                             Console.Out.WriteLine($"Volunteer extra not found as player: {m.scoreName} \t at {m.GetProgramStartTime()}");
+                            anyVolunteerNotFound = true;
                         }
 
                     }
@@ -190,12 +200,18 @@ namespace Scheduling
                                 shiftTask.SetLinkedTask(prevTask);
                             }
                         }
-                        else
+                        else if (!findVolunteer(playerName))
                         {
-                            Console.Out.WriteLine($"Volunteer not found as player: {playerName}");
+                            Console.Out.WriteLine($"Bar volunteer not found as player: {playerName}");
+                            anyVolunteerNotFound = true;
                         }
                     }
                 }
+            }
+
+            if (anyVolunteerNotFound)
+            {
+                System.Environment.Exit(1);
             }
 
             tasks = tasks.OrderByDescending(t => t.GetRefereeQualification()).ThenByDescending(t => t.getAgeQualification()).ToList();
@@ -207,18 +223,21 @@ namespace Scheduling
 
             if (volunteerPlayer == null)
             {
-                var nameParts = playerName.Trim().Split(' ');
-                if (nameParts.Length > 1)
-                {
-                    string lastName = nameParts[nameParts.Length - 1];
-                    string firstName = nameParts.Take(nameParts.Length - 1).Aggregate("", (a, b) => a + " " + b).Trim();
-                    string tempName = lastName + " " + firstName;
-
-                    volunteerPlayer = players.Find(p => p.name.ToLower() == tempName.ToLower());
-                }
+                volunteerPlayer = players.Find(p => p.ApproxNameMatch(playerName.ToLower()));
             }
 
             return volunteerPlayer;
+        }
+
+        private bool findVolunteer(string name)
+        {
+
+            if (volunteers.Contains(name.Split(' ')[0]))
+            {
+                return true;
+            }
+
+            return volunteers.Contains(name);
         }
 
         /**
@@ -317,6 +336,13 @@ namespace Scheduling
                             if (p1.hasOtherTaskOnTime(task1, task2.startTime, task2.endTime)) continue;
                             if (p2.hasOtherTaskOnTime(task2, task1.startTime, task1.endTime)) continue;
 
+                            // if tasks are in a different year then swapping may result in too many tasks in the half year
+                            //if (task1.startTime.Year != task2.startTime.Year)
+                            //{
+                            //    if (p1.getCurrentHalfSeasonTaskCount(task2.startTime.Year) >= p1.getMaxAllowedTasks(task2.startTime)) continue;
+                            //    if (p2.getCurrentHalfSeasonTaskCount(task1.startTime.Year) >= p2.getMaxAllowedTasks(task1.startTime)) continue;
+                            //}
+                            //TODO(Geerten) this doesnt matter today but it should be fixed before next season
 
 
                             double p1Task2Cost = p1.getCostNewTask(task2);
@@ -405,7 +431,7 @@ namespace Scheduling
             return sos;
         }
 
-        // move task from one player to another
+        // move task from one player to another if it reduces the total cost
         public void searchTask()
         {
             //from player
@@ -451,7 +477,7 @@ namespace Scheduling
                         if (!playerUnderConsideration.canPerformTaskOnDay(task.startTime.Date)) continue;
 
                         //cant fit an aditional task
-                        if (playerUnderConsideration.getCurrentHalfSeasonTaskCount(task.startTime.Year) >= playerUnderConsideration.getMaxAllowedTasks(task.startTime.Year)) continue;
+                        if (playerUnderConsideration.getTaskCount() >= playerUnderConsideration.getMaxAllowedTasks(task.startTime)) continue;
 
 
                         //new cost - current cost
@@ -530,7 +556,7 @@ namespace Scheduling
                 {
                     if (!p.isBusyOnTime(t.schedulingStartTime, t.endTime)
                             && p.canPerformTaskOnDay(t.startTime)
-                            && p.getCurrentHalfSeasonTaskCount(t.startTime.Year) < p.getMaxAllowedTasks(t.startTime.Year))
+                            && p.getTaskCount() < p.getMaxAllowedTasks(t.startTime))
                     {
                         double currentCost = p.getCostNewTask(t);
 
@@ -548,8 +574,6 @@ namespace Scheduling
                 }
                 else
                 {
-                    //Console.Out.WriteLine("Filled task " + t + " with " + minCostPlayer.name + " with cost " + minCost);
-
                     minCostPlayer.addTask(t);
                     t.person = minCostPlayer;
                 }

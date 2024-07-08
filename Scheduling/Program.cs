@@ -1,7 +1,13 @@
-﻿using System;
+﻿using ClosedXML.Excel;
+using DocumentFormat.OpenXml.Drawing;
+using DocumentFormat.OpenXml.Math;
+using DocumentFormat.OpenXml.Spreadsheet;
+using DocumentFormat.OpenXml.Wordprocessing;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
+using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 
 namespace Scheduling
@@ -12,6 +18,7 @@ namespace Scheduling
         static string playersPath = "C:/data/players.csv";
         static string teamsPath = "C:/data/teams.csv";
         static string barPath = "C:/data/bar.csv";
+        static string volunteersPath = "C:/data/volunteers.csv";
 
         static void Main(string[] args)
         {
@@ -22,28 +29,29 @@ namespace Scheduling
             List<Team> teams = r.readTeams(teamsPath);
             List<BarShift> bar = r.readBarShifts(barPath);
             List<DateException> dateExceptions = r.readExceptionsFromProgram(matchPath);
+            HashSet<string> volunteers = r.readVolunteers(volunteersPath);
 
-            Planner planner = new Planner(matches, players, teams, bar, dateExceptions);
+            Planner planner = new Planner(matches, players, teams, bar, dateExceptions, volunteers);
 
-            /*
-            foreach (Team t in teams){
-                Console.Out.WriteLine(t);
 
-                Console.Out.WriteLine("Matches: ");
-                foreach(Match m in t.matches)
-                {
-                    Console.Out.WriteLine("\t" + m);
-                }
-                Console.Out.WriteLine("");
+            //foreach (Team t in teams){
+            //    Console.Out.WriteLine(t);
 
-                Console.Out.WriteLine("Days busy: ");
-                foreach(DateTime dt in t.unavailableDates)
-                {
-                    Console.Out.WriteLine("\t" + dt);
-                }
-                Console.Out.WriteLine("");
-            }
-            */
+            //    Console.Out.WriteLine("Matches: ");
+            //    foreach(Match m in t.matches)
+            //    {
+            //        Console.Out.WriteLine("\t" + m + "  " + m.opponent);
+            //    }
+            //    Console.Out.WriteLine("");
+
+            //    //Console.Out.WriteLine("Days busy: ");
+            //    //foreach(DateTime dt in t.unavailableDates)
+            //    //{
+            //    //    Console.Out.WriteLine("\t" + dt);
+            //    //}
+            //    Console.Out.WriteLine("");
+            //}
+
 
 
             planner.generateSchema();
@@ -83,25 +91,24 @@ namespace Scheduling
 
             Console.Out.WriteLine("========================================================");
 
-            foreach (var item in summary) {
-                Console.Out.WriteLine($"Team {item.Key} has {item.Value[1] / (double)item.Value[0]:F1} tasks/player and {item.Value[2] / (double)item.Value[0]:F1} refs/player ({item.Value[0]} players, {item.Value[1]} tasks, {item.Value[2]} refs, {item.Value[3]} volunteer exemptions)");
+            // Team  utilization
+            foreach (var item in summary)
+            {
+                Console.Out.WriteLine($"Team {item.Key} has {item.Value[1] / (double)(item.Value[0] - item.Value[3]):F1} tasks/player and {item.Value[2] / (double)item.Value[0]:F1} refs/player ({item.Value[0]} players, {item.Value[1]} tasks, {item.Value[2]} refs, {item.Value[3]} volunteer exemptions)");
             }
-
-
 
             Console.Out.WriteLine("==========================ALL===========================");
 
-
-            DateTime day = tasks[0].startTime.Date;
+            DateTime lastDay = tasks[0].startTime.Date;
             double dayCost = 0;
             foreach (Task t in tasks)
             {
-                if (day != t.startTime.Date)
+                if (lastDay != t.startTime.Date)
                 {
                     Console.Out.WriteLine("Daycost: " + dayCost);
                     dayCost = 0;
 
-                    day = t.startTime.Date;
+                    lastDay = t.startTime.Date;
                     Console.Out.WriteLine("==================\n");
                 }
 
@@ -160,12 +167,13 @@ namespace Scheduling
             Console.Out.WriteLine("=========================NEW============================");
             foreach (Task t in tasks)
             {
-                if(!t.presetTask)
+                if (!t.presetTask)
                 {
-                    if(t.person == null)
+                    if (t.person == null)
                     {
                         Console.Out.WriteLine($"{"TODO!".PadRight(40)} {t}");
-                    } else
+                    }
+                    else
                     {
                         Console.Out.WriteLine($"{($"{t.person.name} ({t.person.ShortTeamName()})").PadRight(40)} {t}");
                     }
@@ -174,12 +182,12 @@ namespace Scheduling
             }
 
             Console.Out.WriteLine("=====================WARNINGS===========================");
-            foreach(Player p in players)
+            foreach (Player p in players)
             {
                 p.checkOverlappingTasks();
             }
 
-
+            Console.Out.WriteLine($"Task count: {tasks.Count()}");
 
             //to file
             string barSchedule = "Datum,Begin,Eind,Persoon 1,Persoon 2\n";
@@ -206,15 +214,234 @@ namespace Scheduling
             }
             System.IO.File.WriteAllText("players.csv", playerList);
 
-            string schedule = "Datum, tijd, team thuis, team uit, scheidsrechter, teller, veld, zaal\n";
+            string schedule = "Datum, Tijd, Team thuis, Team uit, Scheidsrechter, Teller, Veld, Zaal\n";
             foreach (Match m in matches)
             {
                 schedule += m.ToCSV() + "\n";
             }
             System.IO.File.WriteAllText("schedule.csv", schedule);
 
-            Console.Out.WriteLine($"Task count: {tasks.Count()}");
+            // Publication friendly outputs
+            matches = matches.OrderBy(m => m.GetProgramStartTime()).ThenBy(m => m.field).ToList();
+            using (var workbook = new XLWorkbook())
+            {
+                addBarSheet(workbook, bar);
+
+                int rowsPerPage = 35;
+                var worksheet = workbook.Worksheets.Add("Taken");
+                int column = 1;
+                int row = 1;
+
+
+                worksheet.Column(1).Style.NumberFormat.Format = "yyyy-mm-dd";
+                worksheet.Column(2).Style.NumberFormat.Format = "HH:MM";
+
+                DateTime lastDate = new DateTime();
+                long lastTime = 0;
+
+                for (int matchIdx = 0; matchIdx < matches.Count; matchIdx++)
+                {
+                    Match m = matches[matchIdx];
+                    int rowOnPage = (row - 1) % rowsPerPage + 1;
+
+                    // new day so check if the next section fits the remainder of the page
+                    if (lastDate != m.GetProgramStartTime().Date)
+                    {
+                        if (matches.Count(match => match.GetProgramStartTime().Date == m.GetProgramStartTime().Date) > rowsPerPage - rowOnPage)
+                        {
+                            row += rowsPerPage - rowOnPage + 1;
+                            rowOnPage = 1;
+                        }
+                    }
+
+                    if (rowOnPage == 1)
+                    {
+                        addHeader(worksheet, row, column);
+                        // row will be added by the 'new date' section
+                    }
+
+
+                    // Date
+                    if (lastDate != m.GetProgramStartTime().Date)
+                    {
+                        row++;
+                        lastDate = m.GetProgramStartTime().Date;
+                        worksheet.Cell(row, column).Style.Border.TopBorder = XLBorderStyleValues.Thin;
+                        worksheet.Cell(row, column++).Value = m.GetProgramStartTime();
+
+                        lastTime = 0;
+                    }
+                    else
+                    {
+                        column++;
+                    }
+
+                    // Time
+                    if (lastTime != m.GetProgramStartTime().Ticks)
+                    {
+                        worksheet.Cell(row, column++).Value = m.GetProgramStartTime();
+                        worksheet.Range(row, 2, row, 7).Style.Border.TopBorder = XLBorderStyleValues.Thin;
+                        lastTime = m.GetProgramStartTime().Ticks;
+                    }
+                    else
+                    {
+                        column++;
+                    }
+
+                    worksheet.Cell(row, column++).Value = m.teamName;
+                    worksheet.Cell(row, column++).Value = m.opponent;
+
+                    var personel = m.GetProgramValues();
+                    worksheet.Cell(row, column++).Value = personel[0];
+                    worksheet.Cell(row, column++).Value = personel[1];
+                    worksheet.Cell(row, column++).Value = m.field;
+
+
+                    row++;
+                    column = 1;
+                }
+
+                worksheet.Columns().AdjustToContents();
+
+
+                var perTeamTasks = tasks.Where(t => t.person != null).OrderBy(t => t.person.teamNames[0]).ThenBy(t => t.schedulingStartTime).ToList();
+                lastDay = perTeamTasks[0].startTime.Date;
+                string lastTeam = "";
+                foreach (Task t in perTeamTasks)
+                {
+                    if (lastDay != t.startTime.Date)
+                    {
+                        lastDay = t.startTime.Date;
+                        row++;
+                    }
+
+                    if (lastTeam != t.person.teamNames[0])
+                    {
+                        row = 1;
+                        column = 1;
+
+                        lastTeam = t.person.teamNames[0];
+                        worksheet.Columns().AdjustToContents();
+                        worksheet = workbook.AddWorksheet(lastTeam);
+
+                        worksheet.Cell(row, column++).Value = "Naam";
+                        worksheet.Cell(row, column++).Value = "Datum";
+                        worksheet.Cell(row, column++).Value = "Start tijd";
+                        worksheet.Cell(row, column++).Value = "Eind tijd";
+                        worksheet.Cell(row, column++).Value = "Taak";
+
+                        worksheet.Range(1, 1, 1, column).Style.Font.Bold = true;
+
+                        worksheet.Column(2).Style.NumberFormat.Format = "yyyy-mm-dd";
+                        worksheet.Column(3).Style.NumberFormat.Format = "HH:MM";
+                        worksheet.Column(4).Style.NumberFormat.Format = "HH:MM";
+
+                        row++;
+                        column = 1;
+                    }
+
+                    var playersOnTask = players.Where(p => p.tasks.Contains(t)).ToList();
+                    if (playersOnTask.Count > 0)
+                    {
+                        worksheet.Cell(row, column++).Value = playersOnTask[0].name;
+                        worksheet.Cell(row, column++).Value = t.startTime.Date;
+                        worksheet.Cell(row, column++).Value = t.startTime.TimeOfDay;
+                        worksheet.Cell(row, column++).Value = t.endTime.TimeOfDay;
+
+                        string taskName;
+                        switch (t.type)
+                        {
+                            case TaskType.Referee:
+                                taskName = "Scheidsrechter";
+                                break;
+                            case TaskType.ScoreKeeping:
+                                taskName = "Teller";
+                                break;
+                            case TaskType.BarKeeper:
+                                taskName = "Bardienst";
+                                break;
+                            default:
+                                throw new NotImplementedException();
+                        }
+
+                        worksheet.Cell(row, column++).Value = $"{taskName} {t.Note}";
+                        column = 1;
+                        row++;
+                    }
+                }
+
+                workbook.SaveAs("Takenrooster 20xx-20xx xxxxx helft vx.xlsx");
+            }
+            Console.Out.WriteLine("Done!");
             Console.In.ReadLine();
+        }
+
+
+        static void addBarSheet(IXLWorkbook workbook, List<BarShift> bar)
+        {
+            int rowsPerPage = 48;
+
+            int column = 1;
+            int row = 1;
+            var worksheet = workbook.AddWorksheet("Bar");
+
+            worksheet.Column(2).Style.NumberFormat.Format = "yyyy-mm-dd";
+            worksheet.Column(3).Style.NumberFormat.Format = "HH:MM";
+            worksheet.Column(4).Style.NumberFormat.Format = "HH:MM";
+
+            var lastDate = new DateTime();
+
+            for (int barIdx = 0; barIdx < bar.Count; barIdx++)
+            {
+                BarShift bs = bar[barIdx];
+                int rowOnPage = (row - 1) % rowsPerPage + 1;
+
+                // new day so check if the next section fits the remainder of the page
+                if (bs.startTime.Date != lastDate)
+                {
+                    if (bar.Count(bar => bar.startTime.Date == bs.startTime.Date) > rowsPerPage - rowOnPage)
+                    {
+                        row += rowsPerPage - rowOnPage + 1;
+                        rowOnPage = 1;
+                    }
+                }
+
+
+                if (rowOnPage == 1)
+                {
+                    addBarHeader(worksheet, row);
+                    // row will be added by the 'new date' section
+                }
+
+                if (bs.startTime.Date != lastDate)
+                {
+                    row++;
+                    lastDate = bs.startTime.Date;
+                    worksheet.Cell(row, column++).Value = bs.startTime.ToShortDateString();
+                }
+                else
+                {
+                    column++;
+                }
+
+                worksheet.Cell(row, column++).Value = bs.startTime.ToShortTimeString();
+
+                if (barIdx == bar.Count - 1 || bar[barIdx].startTime.Date != bar[barIdx + 1].startTime.Date)
+                {
+                    worksheet.Cell(row, column++).Value = "Sluit";
+                }
+                else
+                {
+                    worksheet.Cell(row, column++).Value = bs.endTime.ToShortTimeString();
+
+                }
+                worksheet.Cell(row, column++).Value = bs.personel[0];
+                worksheet.Cell(row, column++).Value = bs.personel[1];
+
+                column = 1;
+                row++;
+            }
+            worksheet.Columns().AdjustToContents();
         }
 
 
@@ -250,5 +477,35 @@ namespace Scheduling
 
             Console.Out.WriteLine("");
         }
+
+        static void addBarHeader(IXLWorksheet worksheet, int row)
+        {
+            int column = 1;
+
+            worksheet.Cell(row, column++).Value = "Datum";
+            worksheet.Cell(row, column++).Value = "Begin";
+            worksheet.Cell(row, column++).Value = "Eind";
+            worksheet.Cell(row, column++).Value = "Persoon 1";
+            worksheet.Cell(row, column).Value = "Persoon 2";
+
+            worksheet.Range(row, 1, row, column).Style.Font.Bold = true;
+            worksheet.Range(row, 1, row, column).Style.Border.BottomBorder = XLBorderStyleValues.Thick;
+        }
+
+        static void addHeader(IXLWorksheet worksheet, int row, int column)
+        {
+            worksheet.Cell(row, column++).Value = "Datum";
+            worksheet.Cell(row, column++).Value = "Tijd";
+            worksheet.Cell(row, column++).Value = "Team thuis";
+            worksheet.Cell(row, column++).Value = "Team uit";
+            worksheet.Cell(row, column++).Value = "Scheidsrechter";
+            worksheet.Cell(row, column++).Value = "Teller";
+            worksheet.Cell(row, column).Value = "Veld";
+
+            worksheet.Range(row, 1, row, column).Style.Font.Bold = true;
+            worksheet.Range(row, 1, row, column).Style.Border.BottomBorder = XLBorderStyleValues.Thick;
+
+        }
     }
+
 }

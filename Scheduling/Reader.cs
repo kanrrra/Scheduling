@@ -1,4 +1,5 @@
-﻿using System;
+﻿using DocumentFormat.OpenXml.Vml;
+using System;
 using System.Collections.Generic;
 using System.Text;
 using System.Text.RegularExpressions;
@@ -12,34 +13,34 @@ namespace Scheduling
         string previousFirstCell;
 
         public static string[] SplitCsv(string line)
-    {
-        List<string> result = new List<string>();
-        StringBuilder currentStr = new StringBuilder("");
-        bool inQuotes = false;
-        for (int i = 0; i < line.Length; i++) // For each character
         {
-            if (line[i] == '\"') // Quotes are closing or opening
-                inQuotes = !inQuotes;
-            else if (line[i] == ',') // Comma
+            List<string> result = new List<string>();
+            StringBuilder currentStr = new StringBuilder("");
+            bool inQuotes = false;
+            for (int i = 0; i < line.Length; i++) // For each character
             {
-                if (!inQuotes) // If not in quotes, end of current string, add it to result
+                if (line[i] == '\"') // Quotes are closing or opening
+                    inQuotes = !inQuotes;
+                else if (line[i] == ',') // Comma
                 {
-                    result.Add(currentStr.ToString());
-                    currentStr.Clear();
+                    if (!inQuotes) // If not in quotes, end of current string, add it to result
+                    {
+                        result.Add(currentStr.ToString());
+                        currentStr.Clear();
+                    }
+                    else
+                        currentStr.Append(line[i]); // If in quotes, just add it 
                 }
-                else
-                    currentStr.Append(line[i]); // If in quotes, just add it 
+                else // Add any other character to current string
+                    currentStr.Append(line[i]);
             }
-            else // Add any other character to current string
-                currentStr.Append(line[i]); 
+            result.Add(currentStr.ToString());
+            return result.ToArray(); // Return array of all strings
         }
-        result.Add(currentStr.ToString());
-        return result.ToArray(); // Return array of all strings
-    }
 
         Dictionary<string, int> matchFileIndices = new Dictionary<string, int>();
 
-        string dateIndex = "datum";
+        string dateIndex = "yyyymmdd";
         string timeIndex = "tijd";
         string homeHeaderName = "team thuis";
         string awayHeaderName = "team uit";
@@ -47,6 +48,12 @@ namespace Scheduling
         string refereeIndex = "scheidsrechter";
         string scoreIndex = "teller";
         string fieldIndex = "veld";
+        string startTimeIndex = "begin";
+        string endTimeIndex = "einde";
+        string personOneIndex = "persoon 1";
+        string personTwoIndex = "persoon 2";
+
+        Dictionary<string, int> barFileIndices = new Dictionary<string, int>();
 
         public Reader()
         {
@@ -79,7 +86,7 @@ namespace Scheduling
             if (name.Length < 1) return null;
 
             string teamName = tokens[1].Trim();
-            if(teamName.Length == 0)
+            if (teamName.Length == 0)
             {
                 teamName = "V";
 
@@ -87,7 +94,7 @@ namespace Scheduling
             }
 
             double currentCost = 0;
-            if(tokens.Length > 4 && tokens[4].Length > 0)
+            if (tokens.Length > 4 && tokens[4].Length > 0)
             {
                 currentCost = double.Parse(tokens[4]);
             }
@@ -98,6 +105,12 @@ namespace Scheduling
                 exemption = true;
             }
 
+            if (tokens[3].Length < 1)
+            {
+                tokens[3] = "1980/01/01";
+                Console.Out.WriteLine($"No date of birth found for playyer {name}. Using default 1980/1/1");
+            }
+
             return new Player(name, teamName, tokens[2].Trim(), dateFromString(tokens[3], "00:00"), currentCost, exemption);
         }
 
@@ -106,33 +119,39 @@ namespace Scheduling
         {
             if (barString.Trim().Length < 1) return null;
 
-            string[] tokens = barString.Split(',');
-            if (tokens[1].Length < 1) return null;
+            string[] tokens = SplitCsv(barString);
+
+            if (tokens[barFileIndices[startTimeIndex]].Length < 1) return null;
+
             if (barString.ToLower().Contains("extra"))
             {
                 return null;
             }
 
+            string date = tokens[barFileIndices[dateIndex]];
+
             // if there is no date, use the previous date
-            if (tokens[0].Length < 1)
+            if (date.Length < 1)
             {
-                tokens[0] = previousFirstCell;
-            } else
+                date = previousFirstCell;
+            }
+            else
             {
-                previousFirstCell = tokens[0];
+                previousFirstCell = date;
             }
 
-            DateTime startTime = dateFromString(tokens[0], tokens[1]);
-            DateTime endTime = dateFromString(tokens[0], tokens[2]);
 
-            string person1 = Regex.Replace(tokens[3], @"\(.*?\)", "").Trim();
-            string person2 = Regex.Replace(tokens[4], @"\(.*?\)", "").Trim();
+            DateTime startTime = dateFromString(date, tokens[barFileIndices[startTimeIndex]]);
+            DateTime endTime = dateFromString(date, tokens[barFileIndices[endTimeIndex]]);
+
+            string person1 = Regex.Replace(tokens[barFileIndices[personOneIndex]], @"\(.*?\)", "").Trim();
+            string person2 = Regex.Replace(tokens[barFileIndices[personTwoIndex]], @"\(.*?\)", "").Trim();
 
 
 
             if (startTime.DayOfWeek != DayOfWeek.Saturday)
             {
-                if(person1.Trim().Length < 1)
+                if (person1.Trim().Length < 1)
                 {
                     person1 = "volunteer";
                 }
@@ -154,7 +173,7 @@ namespace Scheduling
 
             string line;
 
-            System.IO.StreamReader file = new System.IO.StreamReader(exceptionPath);
+            System.IO.StreamReader file = new System.IO.StreamReader(exceptionPath, Encoding.UTF8);
 
             //skip first line (headers)
             file.ReadLine();
@@ -164,7 +183,7 @@ namespace Scheduling
                 if (line.Trim().Length == 0) continue;
 
                 var de = createDateExceptionFromProgramString(line);
-                if(de != null) dateExceptions.Add(de);
+                if (de != null) dateExceptions.Add(de);
             }
 
             file.Close();
@@ -194,7 +213,8 @@ namespace Scheduling
                     int homeIndex = matchFileIndices[homeHeaderName];
                     taurusIndex = tokens[homeIndex].IndexOf("Taurus");
                     taurusTeam = tokens[homeIndex].Substring(taurusIndex);
-                } else
+                }
+                else
                 {
                     taurusTeam = tokens[awayIndex].Substring(taurusIndex);
                 }
@@ -203,7 +223,7 @@ namespace Scheduling
                 {
                     return null;
                 }
-                
+
 
                 return new DateException(dateFromString(date, "00:00").Date, taurusTeam);
             }
@@ -217,18 +237,24 @@ namespace Scheduling
 
             List<BarShift> barshifts = new List<BarShift>();
 
-            string line;
+            System.IO.StreamReader file = new System.IO.StreamReader(barPath, Encoding.UTF8);
 
-            System.IO.StreamReader file = new System.IO.StreamReader(barPath);
-            //skip first line (headers)
-            file.ReadLine();
+            //skip first line
+            string line = file.ReadLine();
+            if (line == null)
+            {
+                Console.Out.WriteLine("readBarShifts read line null");
+                return barshifts;
+            }
+
+            setHeaderFileBarIndices(line);
 
             while ((line = file.ReadLine()) != null)
             {
                 if (line.Trim().Length == 0) continue;
 
                 var bs = createBarshiftFromString(line);
-                if(bs != null) barshifts.Add(bs);
+                if (bs != null) barshifts.Add(bs);
             }
 
             file.Close();
@@ -311,13 +337,14 @@ namespace Scheduling
             Console.Out.WriteLine("Reading program");
 
             List<Match> matches = new List<Match>();
-            
-            System.IO.StreamReader file = new System.IO.StreamReader(path);
+
+            System.IO.StreamReader file = new System.IO.StreamReader(path, Encoding.UTF8);
 
             //skip first line
             string line = file.ReadLine();
-            if(line == null)
+            if (line == null)
             {
+                Console.Out.WriteLine("readProgram read line null");
                 return matches;
             }
 
@@ -327,16 +354,18 @@ namespace Scheduling
             while ((line = file.ReadLine()) != null)
             {
                 if (line.Length < 1) continue;
+                if (line[0] == '#') continue;
 
                 var match = createMatchFromProgramString(line);
 
                 if (match != null)
                 {
-                    if(matches.Count > 0 &&  match == matches[matches.Count - 1])
+                    if (matches.Count > 0 && match == matches[matches.Count - 1])
                     {
                         // for duplicate matches i.e. Taurus vs Taurus
                         matches.Add(new Match(match.opponent, match.teamName, match.GetProgramStartTime(), "", "", false, match.field));
-                    } else
+                    }
+                    else
                     {
                         matches.Add(match);
                     }
@@ -353,11 +382,20 @@ namespace Scheduling
         {
             string[] tokens = line.Split(new char[] { ',', ';', '\t' });
 
-            for(int i = 0; i < tokens.Length; i++)
+            for (int i = 0; i < tokens.Length; i++)
             {
                 matchFileIndices[tokens[i].ToLower().Trim()] = i;
             }
+        }
 
+        private void setHeaderFileBarIndices(string line)
+        {
+            string[] tokens = line.Split(new char[] { ',', ';', '\t' });
+
+            for (int i = 0; i < tokens.Length; i++)
+            {
+                barFileIndices[tokens[i].ToLower().Trim()] = i;
+            }
         }
 
         //matches
@@ -370,6 +408,7 @@ namespace Scheduling
             string gym = tokens[matchFileIndices[gymIndex]];
 
             if (date.Length < 1) return null;
+            if (time.Length < 1) return null;
 
             var matchDate = dateFromString(date, time);
 
@@ -385,9 +424,30 @@ namespace Scheduling
             string score = tokens[matchFileIndices[scoreIndex]];
 
             string field = tokens[matchFileIndices[fieldIndex]];
-            
+
             //official start time
             return new Match(homeTeam, awayTeam, matchDate, referee, score, true, field);
+        }
+
+        public HashSet<string> readVolunteers(string path)
+        {
+            Console.Out.WriteLine("Reading volunteers");
+
+            HashSet<string> result = new HashSet<string>();
+
+            System.IO.StreamReader file = new System.IO.StreamReader(path, Encoding.UTF8);
+            string line;
+
+            while ((line = file.ReadLine()) != null)
+            {
+                if (line.Length < 1) continue;
+
+                string[] tokens = SplitCsv(line);
+                result.Add(tokens[0]);
+            }
+
+            return result;
+
         }
 
     }

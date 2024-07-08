@@ -37,10 +37,10 @@ namespace Scheduling
             this.presetTask = presetTask;
             this.schedulingStartTime = start;
 
-            if(type == TaskType.BarKeeper)
-            {
-                this.schedulingStartTime = this.schedulingStartTime.AddMinutes(-15);
-            }
+            //if(type == TaskType.BarKeeper)
+            //{
+            //    this.schedulingStartTime = this.schedulingStartTime.AddMinutes(-15);
+            //}
 
             this.minimumAgeGroup = minimumAgeGroup;
         }
